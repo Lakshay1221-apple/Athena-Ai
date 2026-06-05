@@ -1,0 +1,11 @@
+{
+  "book_name": "HandsonMachine Learning",
+  "total_chunks": 211,
+  "processed_chunks": 10,
+  "failed_chunks": 0,
+  "generated_examples": 10,
+  "duplicates_removed": 0,
+  "final_examples": 10,
+  "model_used": "gemma4:e4b",
+  "timestamp": "2026-06-05T21:44:58.508592"
+}

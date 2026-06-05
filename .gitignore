@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+wheels/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# IDE Files
+.vscode/
+.idea/
+
+# OS/System Files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+
+# Model Artifacts
+models/base/
+models/lora/
+models/merged/
+*.gguf
+*.safetensors
+*.bin
+
+# Embeddings and Vector Databases
+embeddings/
+vector_db/
+
+# Temporary Files
+*.tmp
+*.cache
+
+# Antigravity / Gemini Scratch Files
+brain/
+scratch/

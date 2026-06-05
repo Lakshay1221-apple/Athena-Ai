@@ -1,0 +1,12 @@
+[
+  {
+    "chunk_id": "chunk_044",
+    "reason": "Ollama error or JSON parse failure",
+    "timestamp": "2026-06-05T23:56:20.869640"
+  },
+  {
+    "chunk_id": "chunk_086",
+    "reason": "Ollama error or JSON parse failure",
+    "timestamp": "2026-06-06T00:58:22.249484"
+  }
+]
