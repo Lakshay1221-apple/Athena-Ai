@@ -3,6 +3,8 @@
 > **Building a complete Machine Learning Teaching Assistant through Dataset Generation, Fine-Tuning, and Retrieval-Augmented Generation (RAG).**
 
 ---
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/07de1213-f6fa-4b79-9c07-a3d898c5e312" />
+
 
 ## 📌 Project Overview
 
