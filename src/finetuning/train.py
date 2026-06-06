@@ -1,51 +1,34 @@
-import json 
-from datasets import Dataset
-from unsloth import FastLanguageModel
-from trl import SFTTrainer
-from transformers import AutoTokenizer 
+from dataset_loader import load_formatted_dataset
+from model_loader import load_model_and_tokenizer
+from lora_config import apply_lora
+from trainer import create_trainer
 
-with open("Data/datasets/v1/merged/athena_dataset.json","r", encoding = 'utf-8',) as f:
-    data = json.load(f)
 
-dataset = Dataset.from_list(data)
+def main():
 
-max_seq_length = 2048
+    train_dataset, val_dataset = load_formatted_dataset(
+        "Data/datasets/v1/merged/formatted_dataset.jsonl"
+    )
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name="unsloth/Llama-3.2-1B-Instruct",
-    max_seq_length=max_seq_length,
-    dtype=None,
-    load_in_4bit=True,
-)
+    model, tokenizer = load_model_and_tokenizer()
 
-model = FastLanguageModel.get_peft_model(
-    model,
-    r=16,
-    lora_alpha=32,
-    lora_dropout=0,
-    bias="none",
-    target_modules=[
-        "q_proj",
-        "k_proj",
-        "v_proj",
-        "o_proj",
-        "gate_proj",
-        "up_proj",
-        "down_proj",
-    ],
-    use_gradient_checkpointing="unsloth",
-)
-def formatting_func(example):
+    model = apply_lora(model)
 
-    messages = [
-        {
-            "role": "user",
-            "content": example["instruction"],
-        },
-        {
-            "role": "assistant",
-            "content": example["response"],
-        },
-    ]
+    trainer = create_trainer(
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+    )
 
-    return tokenizer.apply_chat_template(messages,tokenize=False,add_generation_prompt=False,)
+    print("\nTrainer Created Successfully!\n")
+    print(trainer)
+
+    trainer.train()
+
+    model.save_pretrained("outputs/final_model")
+    tokenizer.save_pretrained("outputs/final_model")
+
+
+if __name__ == "__main__":
+    main()

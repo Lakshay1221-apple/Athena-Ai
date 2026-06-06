@@ -1,14 +1,16 @@
 from unsloth import FastLanguageModel
 
-def apple_lora(model):
+
+def apply_lora(model):
 
     model = FastLanguageModel.get_peft_model(
         model,
-        r = 16,
-        lora_alpha = 32,
-        lora_dropout = 0.2,
-        bias = 'none',
-        target_modules = [
+        r=8,
+        lora_alpha=16,
+        lora_dropout=0.0,
+        bias="none",
+
+        target_modules=[
             "q_proj",
             "k_proj",
             "v_proj",
@@ -17,7 +19,9 @@ def apple_lora(model):
             "up_proj",
             "down_proj",
         ],
-        use_gradient_checkpointing = "unsloth",
+
+        use_gradient_checkpointing="unsloth",
+        random_state=42,
     )
 
     return model
