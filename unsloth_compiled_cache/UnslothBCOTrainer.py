@@ -1,39 +1,19 @@
 """
-2026.6.1
-2026.6.1
-5.5.0
-0.24.0
+2025.7.4
+2025.7.2
+4.57.6
+0.14.0
 __UNSLOTH_VERSIONING__
 """
-
-# Unsloth auto generated code
-# Copyright 2023-present Daniel Han-Chen, Michael Han-Chen & the Unsloth team. All rights reserved.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 from torch import Tensor
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from unsloth_zoo.temporary_patches.common import torch_compile
 from typing import Any, List, Optional, Tuple, Union, Dict, Set, Callable
-from trl.trainer.bco_trainer import (Any, AutoModelForCausalLM, BCOConfig, BCOTrainer, BaseImageProcessor, BaseTrainer, CLF_NAME, Callable, DPODataCollatorWithPadding, DataCollator, DataLoader, Dataset, EvalLoopOutput, F, FeatureExtractionMixin, Literal, Optional, PartialState, Path, PeftModel, PreTrainedModel, PreTrainedTokenizerBase, ProcessorMixin, RUNNING_NAME, RunningMoments, SequentialSampler, TrainerCallback, TrainingArguments, Union, _process_tokens, _tokenize, autocast, contextmanager, create_reference_model, defaultdict, disable_dropout_in_model, has_length, inspect, is_comet_available, is_joblib_available, is_peft_available, is_sklearn_available, is_wandb_available, itemgetter, log_table_to_comet_experiment, logger, logging, maybe_apply_chat_template, maybe_extract_prompt, maybe_unpair_preference_dataset, nn, np, nullcontext, os, pad_to_length, pd, peft_module_casting_to_bf16, prepare_deepspeed, prepare_model_for_kbit_training, random, selective_log_softmax, textwrap, torch, tqdm, warnings, AutoModelForCausalLM, BCOConfig, BCOTrainer, BaseImageProcessor, Callable, DPODataCollatorWithPadding, DataCollator, Dataset, EvalLoopOutput, F, FeatureExtractionMixin, Optional, PartialState, PeftModel, PreTrainedModel, PreTrainedTokenizerBase, ProcessorMixin, RunningMoments, TrainerCallback, TrainingArguments, Union, autocast, create_reference_model, defaultdict, disable_dropout_in_model, inspect, is_comet_available, is_joblib_available, is_peft_available, is_sklearn_available, is_wandb_available, logger, maybe_apply_chat_template, maybe_extract_prompt, maybe_unpair_preference_dataset, nn, np, os, peft_module_casting_to_bf16, prepare_deepspeed, prepare_model_for_kbit_training, torch, warnings, F, PeftModel, PreTrainedModel, is_peft_available, logger, os, torch)
+from trl.trainer.bco_trainer import (Any, AutoModelForCausalLM, BCOConfig, BCOTrainer, BaseImageProcessor, CLF_NAME, Callable, DPODataCollatorWithPadding, DataCollator, DataLoader, Dataset, EvalLoopOutput, F, FeatureExtractionMixin, Literal, LogisticRegression, Optional, PartialState, PeftModel, PreTrainedModel, PreTrainedModelWrapper, PreTrainedTokenizerBase, ProcessorMixin, RUNNING_NAME, RunningMoments, SequentialSampler, Trainer, TrainerCallback, TrainingArguments, Union, _process_tokens, _tokenize, amp, contextmanager, create_reference_model, deepcopy, defaultdict, disable_dropout_in_model, generate_model_card, get_comet_experiment_url, has_length, inspect, is_comet_available, is_peft_available, is_sklearn_available, is_wandb_available, itemgetter, log_table_to_comet_experiment, maybe_apply_chat_template, nn, np, nullcontext, os, pad_to_length, pd, peft_module_casting_to_bf16, prepare_model_for_kbit_training, random, textwrap, torch, tqdm, transformers, version, warnings, F, Optional, PeftModel, PreTrainedModel, Trainer, is_peft_available, os, torch)
 
 
 import os
-import math
-import logging
 from typing import *
 from dataclasses import dataclass, field
 from packaging.version import Version
@@ -41,64 +21,7 @@ import torch
 import numpy as np
 from contextlib import nullcontext
 from torch.nn import functional as F
-import inspect
 from transformers import DataCollatorForSeq2Seq, DataCollatorForLanguageModeling as TransformersDataCollatorForLanguageModeling
-from transformers.training_args import ParallelMode
-from unsloth_zoo.device_type import DEVICE_TYPE, device_synchronize
-
-# Wrap trainer with padding to right and enable training mode
-import functools
-from types import MethodType
-try:
-    from unsloth_zoo.gradient_checkpointing import reset_unsloth_gradient_checkpointing_buffers
-except:
-    def reset_unsloth_gradient_checkpointing_buffers(): pass
-def prepare_for_training_mode(f):
-    @functools.wraps(f)
-    def wrapper(self, *args, **kwargs):
-        # Finish the previous W&B run if this is a subsequent train() call.
-        # We do this at the START of train() (not the end) so that
-        # evaluate() / log() still work after train() completes.
-        # HF's WandbCallback.setup() will call wandb.init() for the new run.
-        # See: https://github.com/unslothai/unsloth/issues/3954
-        if getattr(self, '_unsloth_training_completed', False):
-            try:
-                import wandb
-                if wandb.run is not None:
-                    wandb.finish()
-                    # Reset HF's WandbCallback so it calls wandb.init() for the new run
-                    for cb in self.callback_handler.callbacks:
-                        if type(cb).__name__ == 'WandbCallback':
-                            cb._initialized = False
-                            break
-            except:
-                pass
-        # Enable training mode
-        _was_training = None
-        # Get gradient checkpointing setting from training arguments
-        use_gc = getattr(self.args, 'gradient_checkpointing', True)
-        if hasattr(self, 'model') and hasattr(self.model, "training"):
-            _was_training = self.model.training
-        if hasattr(self, 'model') and hasattr(self.model, "for_training"):
-            self.model.for_training(use_gradient_checkpointing=use_gc)
-        output = f(self, *args, **kwargs)
-        # Restore previous mode when possible
-        if hasattr(self, 'model') and hasattr(self.model, "for_inference"):
-            if _was_training is False:
-                self.model.for_inference()
-            elif _was_training is True and hasattr(self.model, "for_training"):
-                self.model.for_training(use_gradient_checkpointing=use_gc)
-        # Reset gradient checkpointing buffers to free memory while staying ready for next run
-        try:
-            reset_unsloth_gradient_checkpointing_buffers()
-        except:
-            pass
-        # Mark that training completed so the next train() call can
-        # finish this W&B run before starting a new one
-        self._unsloth_training_completed = True
-        return output
-    return wrapper
-pass
 
 torch_compile_options = {
     "epilogue_fusion"   : True,
@@ -109,268 +32,19 @@ torch_compile_options = {
 }
 
 @torch.compile(dynamic = True, fullgraph = True, options = torch_compile_options,)
-def chunked_hidden_states_selective_log_softmax(
-    hidden_states: torch.Tensor,
-    lm_head: torch.Tensor,
-    index: torch.Tensor,
-    chunks: int = 4,
-    logit_scale_multiply: float = 0.0,
-    logit_scale_divide: float = 0.0,
-    logit_softcapping: float = 0.0,
-    temperature: float = 1.0,
-) -> torch.Tensor:
-    # All Unsloth Zoo code licensed under AGPL3
-    flat_hidden_states = hidden_states.reshape(-1, hidden_states.shape[-1])
-    flat_index = index.reshape(-1)
-
-    chunked_hidden_states = torch.chunk(flat_hidden_states, chunks=chunks, dim=0)
-    chunked_index = torch.chunk(flat_index, chunks=chunks, dim=0)
-
-    all_per_token_logps = []
-
-    for chunk_hidden_states, chunk_index in zip(chunked_hidden_states, chunked_index):
-        chunk_logits = chunk_hidden_states.to(lm_head.dtype) @ lm_head.t()
-
-        if logit_scale_multiply != 0.0:
-            chunk_logits = chunk_logits * logit_scale_multiply
-        if logit_scale_divide != 0.0:
-            chunk_logits = chunk_logits / logit_scale_divide
-        if logit_softcapping != 0.0:
-            chunk_logits = logit_softcapping * torch.tanh(chunk_logits / logit_softcapping)
-
-        chunk_logits = chunk_logits.to(torch.float32)
-
-        if temperature != 1.0:
-            chunk_logits = chunk_logits / temperature
-
-        selected_logits = torch.gather(chunk_logits, dim=-1, index=chunk_index.unsqueeze(-1)).squeeze(-1)
-        logsumexp_values = torch.logsumexp(chunk_logits, dim=-1)
-        per_token_logps = selected_logits - logsumexp_values
-        all_per_token_logps.append(per_token_logps)
-
-    all_per_token_logps = torch.concat(all_per_token_logps)
-
-    all_per_token_logps = all_per_token_logps.reshape((hidden_states.shape[0], hidden_states.shape[1]))
-    return all_per_token_logps
-
-@torch.compile(dynamic = True, fullgraph = True, options = torch_compile_options,)
-def chunked_selective_log_softmax(
-    logits,
-    index,
-    temperature: float = 1.0,
-    chunks: int = 4,
-):
-    chunked_logits = torch.chunk(logits.reshape(-1, logits.shape[-1]), chunks = chunks, dim = 0)
-    chunked_index  = torch.chunk(index.reshape(-1), chunks = chunks, dim = 0)
-    all_per_token_logps = []
-    # Below loop does the same as selective_log_softmax(chunk_logits, chunk_index)
-    for chunk_logits, chunk_index in zip(chunked_logits, chunked_index):
-        chunk_logits = chunk_logits.to(torch.float32)
-        if temperature != 1.0:
-            chunk_logits = chunk_logits / temperature
-        selected_logits = torch.gather(chunk_logits, dim = -1, index = chunk_index.unsqueeze(-1)).squeeze(-1)
-        logsumexp_values = torch.logsumexp(chunk_logits, dim = -1)
-        per_token_logps = selected_logits - logsumexp_values
-        all_per_token_logps.append(per_token_logps)
-    pass
-    all_per_token_logps = torch.concat(all_per_token_logps)
-    all_per_token_logps = all_per_token_logps.reshape((logits.shape[0], logits.shape[1]))
-    return all_per_token_logps
-
-def calculate_pad_tokens_in_prompt(
-    input_ids: torch.Tensor,
-    logits_to_keep: int,
-    pad_token_id: int
-) -> torch.Tensor:
-    """
-    Given prompt tensor, it returns all the left padded tokens in that sequence. so [pad, pad, pad, cat] = 3 tokens
-    """
-    if logits_to_keep >= input_ids.shape[1]:
-        raise ValueError("logits_to_keep must be smaller than the sequence length.")
-
-    prompt_section = input_ids[:, :-logits_to_keep]
-
-    padding_mask = (prompt_section == pad_token_id)
-
-    pad_token_counts = padding_mask.sum(dim=1)
-
-    return pad_token_counts
-
-def create_completion_attention_mask(
-    completion_input_ids: torch.Tensor,
-    left_pad_tokens_per_prompt: torch.Tensor,
-    max_left_pad: int,
-    pad_token_id: int
-) -> torch.Tensor:
-    """
-    Given that we have a sequence, [p,p,p,c,c,c,pad,pad,pad]
-
-    Where p are extra prompt tokens we got from slicing the torch tensor, c is completion tokens
-    and pad are pad tokens, this function would make a completion mask that would 0 out the pad
-    and p tokens. so in this example [0,0,0,1,1,1,0,0,0]
-    """
-    batch_size, completion_len = completion_input_ids.shape
-    device = completion_input_ids.device
-
-    num_tokens_to_mask = max_left_pad - left_pad_tokens_per_prompt
-
-    indices = torch.arange(completion_len, device=device).unsqueeze(0)
-    shift_mask = indices >= num_tokens_to_mask.unsqueeze(1)
-
-    non_padding_mask = (completion_input_ids != pad_token_id)
-
-    final_mask = shift_mask & non_padding_mask
-
-    return final_mask
-
-def left_pack_padding(tensor: torch.Tensor, pad_id: int) -> torch.Tensor:
-    """
-    Moves all padding tokens in each sequence of a batch to the right.
-    """
-    mask = (tensor != pad_id)
-    # Must do stable=True since binary mark is unordered
-    sorted_indices = torch.argsort(mask, dim=1, descending=True, stable=True)
-    packed_tensor = torch.gather(tensor, 1, sorted_indices)
-    return packed_tensor
-
-def align_logprobs_with_mask(
-    logprob_tensor: torch.Tensor,
-    attention_mask: torch.Tensor,
-    pad_value: float = 0.0
-) -> torch.Tensor:
-    """
-    Aligns a log probability tensor with a given attention mask.
-    """
-
-    device = logprob_tensor.device
-    batch_size, logprob_seq_len = logprob_tensor.shape
-    mask_seq_len = attention_mask.shape[1]
-
-    padded_logprobs = torch.full(
-        attention_mask.shape,
-        fill_value=pad_value,
-        dtype=logprob_tensor.dtype,
-        device=device
-    )
-
-    left_pad_counts = torch.argmax(attention_mask, dim=1)
-
-    cols = torch.arange(logprob_seq_len, device=device)
-    dest_indices = left_pad_counts.unsqueeze(1) + cols
-
-    # Create destination row indices
-    # Shape: [batch_size, logprob_seq_len]
-    row_indices = torch.arange(batch_size, device=device).unsqueeze(1).expand_as(dest_indices)
-
-    # --- 4. Filter out-of-bounds indices and perform assignment ---
-    # Create a mask to identify only the indices that are within the bounds
-    # of the target tensor's sequence length.
-    valid_mask = dest_indices < mask_seq_len
-
-    # Use this mask to select only the valid row indices, column indices,
-    # and the corresponding values from the logprob tensor.
-    # This flattens the selected elements into 1D tensors.
-    valid_rows = row_indices[valid_mask]
-    valid_cols = dest_indices[valid_mask]
-    valid_vals = logprob_tensor[valid_mask]
-
-    # Place the valid values into their correct positions in the padded tensor
-    # using a single, efficient advanced indexing operation.
-    padded_logprobs[valid_rows, valid_cols] = valid_vals
-
-    return padded_logprobs
-
-def align_completion_tool_mask(
-    tool_mask: torch.Tensor,
-    completion_mask: torch.Tensor,
-) -> torch.Tensor:
-    """
-    Aligns a raw completion-length tool/env mask with Unsloth's repacked loss mask.
-    """
-    if tool_mask is None:
-        return completion_mask
-    if tool_mask.shape[0] != completion_mask.shape[0]:
-        raise ValueError("tool_mask batch size must match completion_mask batch size.")
-
-    tool_mask = tool_mask.to(device=completion_mask.device)
-    if tool_mask.shape == completion_mask.shape:
-        aligned_tool_mask = tool_mask
-    else:
-        aligned_tool_mask = align_logprobs_with_mask(
-            tool_mask,
-            completion_mask,
-            pad_value=0,
-        )
-    return completion_mask * aligned_tool_mask.to(dtype=completion_mask.dtype)
-
-def autotune_batch_and_chunks(
-    total_input_rows,
-    seq_len,
-    hidden_size,
-    vocab_size,
-    dtype_bytes=16,
-    multiplier=None
-):
-    if multiplier is None:
-        final_m = max(4, seq_len // 4096)
-    else:
-        final_m = multiplier
-
-    if torch.cuda.is_available():
-        free_bytes, _ = torch.cuda.mem_get_info()
-        limit_gb = (free_bytes / (1024**3))*.80
-    elif hasattr(torch, "xpu") and torch.xpu.is_available():
-        # For XPU: estimate free memory from total - reserved
-        total_mem = torch.xpu.get_device_properties(0).total_memory
-        reserved_mem = torch.xpu.memory_reserved()
-        free_bytes = total_mem - reserved_mem
-        limit_gb = (free_bytes / (1024**3)) * 0.80
-    else:
-        # Fallback: assume 8GB available
-        limit_gb = 8.0
-
-    bytes_to_gb = 1024**3
-
-    b_vals = torch.arange(total_input_rows, 0, -1, device='cpu', dtype=torch.float32)
-
-    hidden_gb = (b_vals * seq_len * hidden_size * dtype_bytes) / bytes_to_gb
-
-    base_logits = ((b_vals/total_input_rows) * b_vals * seq_len * vocab_size * dtype_bytes) / bytes_to_gb
-    logits_gb = base_logits / final_m
-
-    total_mem_gb = hidden_gb + logits_gb
-
-    valid_mask = total_mem_gb <= limit_gb
-    valid_indices = torch.nonzero(valid_mask, as_tuple=False)
-
-    if valid_indices.shape[0] == 0:
-        #This means your GPU will OOM
-        return 4, final_m
-
-    best_idx = valid_indices[0].item()
-    final_b = int(b_vals[best_idx].item())
-
-    return final_b, final_m
-
-def sanitize_logprob(logprob):
-    """Local port of trl.scripts.vllm_serve.sanitize_logprob.
-    Filters NaN logprobs from vLLM outputs."""
-    value = logprob.logprob
-    if math.isnan(value):
-        logging.getLogger(__name__).warning(
-            f"Generated NaN logprob, token logprob '{logprob}' will be ignored"
-        )
-        return None
-    return value
+def selective_log_softmax(logits, index):
+    logits = logits.to(torch.float32)
+    selected_logits = torch.gather(logits, dim = -1, index = index.unsqueeze(-1)).squeeze(-1)
+    # loop to reduce peak mem consumption
+    # logsumexp_values = torch.stack([torch.logsumexp(lg, dim=-1) for lg in logits])
+    logsumexp_values = torch.logsumexp(logits, dim = -1)
+    per_token_logps = selected_logits - logsumexp_values  # log_softmax(x_i) = x_i - logsumexp(x)
+    return per_token_logps
 @dataclass
 class UnslothBCOConfig(BCOConfig):
     """
     
     Configuration class for the [`BCOTrainer`].
-
-    This class includes only the parameters that are specific to BCO training. For a full list of training arguments,
-    please refer to the [`~transformers.TrainingArguments`] documentation. Note that default values in this class may
-    differ from those in [`~transformers.TrainingArguments`].
 
     Using [`~transformers.HfArgumentParser`] we can turn this class into
     [argparse](https://docs.python.org/3/library/argparse#module-argparse) arguments that can be specified on the
@@ -382,7 +56,7 @@ class UnslothBCOConfig(BCOConfig):
             to use the default data collator.
         max_prompt_length (`int` or `None`, *optional*, defaults to `512`):
             Maximum length of the prompt. This argument is required if you want to use the default data collator.
-        max_completion_length (`int`, *optional*):
+        max_completion_length (`int` or `None`, *optional*, defaults to `None`):
             Maximum length of the completion. This argument is required if you want to use the default data collator
             and your model is an encoder-decoder.
         beta (`float`, *optional*, defaults to `0.1`):
@@ -390,7 +64,7 @@ class UnslothBCOConfig(BCOConfig):
             reference model.
         label_pad_token_id (`int`,  *optional*, defaults to `-100`):
             Label pad token id. This argument is required if you want to use the default data collator.
-        padding_value (`int`, *optional*):
+        padding_value (`int` or `None`, *optional*, defaults to `None`):
             Padding value to use. If `None`, the padding value of the tokenizer is used.
         truncation_mode (`str`, *optional*, defaults to `"keep_end"`):
             Truncation mode to use when the prompt is too long. Possible values are `"keep_end"` or `"keep_start"`.
@@ -398,21 +72,21 @@ class UnslothBCOConfig(BCOConfig):
         disable_dropout (`bool`, *optional*, defaults to `True`):
             Whether to disable dropout in the model and reference model.
         generate_during_eval (`bool`, *optional*, defaults to `False`):
-            If `True`, generates and logs completions from both the model and the reference model to W&B or Comet
-            during evaluation.
-        is_encoder_decoder (`bool`, *optional*):
+            If `True`, generates and logs completions from both the model and the reference model to W&B or Comet during
+            evaluation.
+        is_encoder_decoder (`bool` or `None`, *optional*, defaults to `None`):
             When using the `model_init` argument (callable) to instantiate the model instead of the `model` argument,
             you need to specify if the model returned by the callable is an encoder-decoder model.
         precompute_ref_log_probs (`bool`, *optional*, defaults to `False`):
             Whether to precompute reference model log probabilities for training and evaluation datasets. This is
             useful when training without the reference model to reduce the total GPU memory needed.
-        model_init_kwargs (`dict[str, Any]`, *optional*):
+        model_init_kwargs (`dict[str, Any]` or `None`, *optional*, defaults to `None`):
             Keyword arguments to pass to `AutoModelForCausalLM.from_pretrained` when instantiating the model from a
             string.
-        ref_model_init_kwargs (`dict[str, Any]`, *optional*):
+        ref_model_init_kwargs (`dict[str, Any]` or `None`, *optional*, defaults to `None`):
             Keyword arguments to pass to `AutoModelForCausalLM.from_pretrained` when instantiating the reference model
             from a string.
-        dataset_num_proc (`int`, *optional*):
+        dataset_num_proc (`int` or `None`, *optional*, defaults to `None`):
             Number of processes to use for processing the dataset.
         prompt_sample_size (`int`, *optional*, defaults to `1024`):
             Number of prompts that are fed to density ratio classifier.
@@ -430,128 +104,139 @@ class UnslothBCOConfig(BCOConfig):
         default = -1,
         metadata = {'help': 'Chunk size to reduce memory usage. -1 is most efficient.'},
     )
-    unsloth_logit_chunk_multiplier : Optional[int] = field(
-            default = None,
-            metadata = {'help': 'Multiplier for chunked logit computations.'},
-        )
-    unsloth_grpo_mini_batch : Optional[int] = field(
-        default = None,
-        metadata = {'help': 'Mini batch size for GRPO hidden state accumulation. Default is None unless user defines it.'},
-    )
-    max_seq_length : Optional[int] = field(
-        default = None,
-        metadata = {'help': 'Maximum sequence length to truncate to.'},
-    )
     def __init__(
         self,
         output_dir = None,
+        overwrite_output_dir = None,
+        do_train = False,
+        do_eval = False,
+        do_predict = False,
+        eval_strategy = 'no',
+        prediction_loss_only = False,
         per_device_train_batch_size = 4,
-        num_train_epochs = 3.0,
-        max_steps = -1,
+        per_device_eval_batch_size = 4,
+        per_gpu_train_batch_size = None,
+        per_gpu_eval_batch_size = None,
+        gradient_accumulation_steps = 2,
+        eval_accumulation_steps = 2,
+        eval_delay = 0,
+        torch_empty_cache_steps = 250,
         learning_rate = 5e-05,
-        lr_scheduler_type = 'linear',
-        lr_scheduler_kwargs = None,
-        warmup_steps = 0.1,
-        optim = 'adamw_8bit',
-        optim_args = None,
-        weight_decay = 0.001,
+        weight_decay = 0.01,
         adam_beta1 = 0.9,
         adam_beta2 = 0.999,
         adam_epsilon = 1e-08,
-        optim_target_modules = None,
-        gradient_accumulation_steps = 2,
-        average_tokens_across_devices = True,
         max_grad_norm = 1.0,
-        label_smoothing_factor = 0.0,
+        num_train_epochs = 3.0,
+        max_steps = -1,
+        lr_scheduler_type = 'linear',
+        lr_scheduler_kwargs = None,
+        warmup_ratio = 0.1,
+        warmup_steps = 0,
+        log_level = 'passive',
+        log_level_replica = 'warning',
+        log_on_each_node = True,
+        logging_dir = None,
+        logging_strategy = 'steps',
+        logging_first_step = False,
+        logging_steps = 1,
+        logging_nan_inf_filter = False,
+        save_strategy = 'steps',
+        save_steps = 500,
+        save_total_limit = None,
+        save_safetensors = True,
+        save_on_each_node = False,
+        save_only_model = False,
+        restore_callback_states_from_checkpoint = False,
+        no_cuda = False,
+        use_cpu = False,
+        use_mps_device = False,
+        seed = 3407,
+        data_seed = 3407,
+        jit_mode_eval = False,
         bf16 = False,
         fp16 = False,
+        fp16_opt_level = 'O1',
+        half_precision_backend = 'auto',
         bf16_full_eval = False,
         fp16_full_eval = False,
         tf32 = None,
-        gradient_checkpointing = True,
-        gradient_checkpointing_kwargs = None,
-        torch_compile = False,
-        torch_compile_backend = None,
-        torch_compile_mode = None,
-        use_liger_kernel = False,
-        liger_kernel_config = None,
-        use_cache = False,
-        neftune_noise_alpha = None,
-        torch_empty_cache_steps = 250,
-        auto_find_batch_size = False,
-        logging_strategy = 'steps',
-        logging_steps = 1,
-        logging_first_step = False,
-        log_on_each_node = True,
-        logging_nan_inf_filter = False,
-        include_num_input_tokens_seen = False,
-        log_level = 'passive',
-        log_level_replica = 'warning',
-        disable_tqdm = None,
-        report_to = 'none',
-        run_name = None,
-        project = 'huggingface',
-        trackio_space_id = 'trackio',
-        eval_strategy = 'no',
+        local_rank = -1,
+        ddp_backend = None,
+        tpu_num_cores = None,
+        tpu_metrics_debug = False,
+        debug = '',
+        dataloader_drop_last = False,
         eval_steps = None,
-        eval_delay = 0,
-        per_device_eval_batch_size = 4,
-        prediction_loss_only = False,
-        eval_on_start = False,
-        eval_do_concat_batches = True,
-        eval_use_gather_object = False,
-        eval_accumulation_steps = 2,
-        batch_eval_metrics = False,
-        save_only_model = False,
-        save_strategy = 'steps',
-        save_steps = 500,
-        save_on_each_node = False,
-        save_total_limit = None,
-        enable_jit_checkpoint = False,
-        push_to_hub = False,
-        hub_token = None,
-        hub_private_repo = None,
-        hub_model_id = None,
-        hub_strategy = 'every_save',
-        hub_always_push = False,
-        hub_revision = None,
+        dataloader_num_workers = 0,
+        dataloader_prefetch_factor = None,
+        past_index = -1,
+        run_name = None,
+        disable_tqdm = None,
+        remove_unused_columns = True,
+        label_names = None,
         load_best_model_at_end = False,
         metric_for_best_model = None,
         greater_is_better = None,
         ignore_data_skip = False,
-        restore_callback_states_from_checkpoint = False,
-        full_determinism = False,
-        seed = 3407,
-        data_seed = 3407,
-        use_cpu = False,
+        fsdp = None,
+        fsdp_min_num_params = 0,
+        fsdp_config = None,
+        fsdp_transformer_layer_cls_to_wrap = None,
         accelerator_config = None,
         parallelism_config = None,
-        dataloader_drop_last = False,
-        dataloader_num_workers = 0,
-        dataloader_pin_memory = True,
-        dataloader_persistent_workers = False,
-        dataloader_prefetch_factor = None,
-        remove_unused_columns = True,
-        label_names = None,
-        train_sampling_strategy = 'random',
+        deepspeed = None,
+        label_smoothing_factor = 0.0,
+        optim = 'adamw_8bit',
+        optim_args = None,
+        adafactor = False,
+        group_by_length = False,
         length_column_name = 'length',
+        report_to = None,
+        project = 'huggingface',
+        trackio_space_id = 'trackio',
         ddp_find_unused_parameters = None,
         ddp_bucket_cap_mb = None,
         ddp_broadcast_buffers = None,
-        ddp_backend = None,
-        ddp_timeout = 1800,
-        fsdp = None,
-        fsdp_config = None,
-        deepspeed = None,
-        debug = '',
+        dataloader_pin_memory = True,
+        dataloader_persistent_workers = False,
         skip_memory_metrics = True,
-        do_train = False,
-        do_eval = False,
-        do_predict = False,
+        use_legacy_prediction_loop = False,
+        push_to_hub = False,
         resume_from_checkpoint = None,
-        warmup_ratio = None,
-        logging_dir = None,
-        local_rank = -1,
+        hub_model_id = None,
+        hub_strategy = 'every_save',
+        hub_token = None,
+        hub_private_repo = None,
+        hub_always_push = False,
+        hub_revision = None,
+        gradient_checkpointing = False,
+        gradient_checkpointing_kwargs = None,
+        include_inputs_for_metrics = False,
+        eval_do_concat_batches = True,
+        fp16_backend = 'auto',
+        push_to_hub_model_id = None,
+        push_to_hub_organization = None,
+        push_to_hub_token = None,
+        mp_parameters = '',
+        auto_find_batch_size = False,
+        full_determinism = False,
+        torchdynamo = None,
+        ray_scope = 'last',
+        ddp_timeout = 1800,
+        torch_compile = False,
+        torch_compile_backend = None,
+        torch_compile_mode = None,
+        include_tokens_per_second = False,
+        include_num_input_tokens_seen = False,
+        neftune_noise_alpha = None,
+        optim_target_modules = None,
+        batch_eval_metrics = False,
+        eval_on_start = False,
+        use_liger_kernel = False,
+        liger_kernel_config = None,
+        eval_use_gather_object = False,
+        average_tokens_across_devices = True,
         max_length = 1024,
         max_prompt_length = 512,
         max_completion_length = None,
@@ -571,138 +256,149 @@ class UnslothBCOConfig(BCOConfig):
         max_density_ratio = 10.0,
         vllm_sampling_params = None,
         unsloth_num_chunks = -1,
-        unsloth_logit_chunk_multiplier = None,
-        unsloth_grpo_mini_batch = None,
-        max_seq_length = None,
         **kwargs,
     ):
-        if learning_rate < 1e-7: print(f'Unsloth: Your learning rate of `{learning_rate}` is too small and less than 1e-7! Consider increasing it, otherwise gradient updates will be close to 0!')
-        if learning_rate > 1: print(f'Unsloth: Your learning rate of `{learning_rate}` is way too larger > 1! Consider decreasing it to 1e-1, otherwise gradient updates will explode!')
-        if num_train_epochs is None:
-            num_train_epochs = 3.0  # Default to 3 epochs if None, max_steps will override
+        if learning_rate < 1e-7: raise FloatingPointError(f'Unsloth: Your learning rate of `{learning_rate}` is too small and less than 1e-7! Consider increasing it, otherwise gradient updates will be close to 0!')
+        if learning_rate > 1: raise OverflowError(f'Unsloth: Your learning rate of `{learning_rate}` is way too larger > 1! Consider decreasing it to 1e-1, otherwise gradient updates will explode!')
         if output_dir is None and save_strategy == 'steps' and save_steps == 500:
             output_dir = 'unsloth_training_checkpoints'
             save_strategy = 'no'
-        import multiprocessing as _mp
         if dataset_num_proc is None:
-            if _mp.get_start_method() != 'fork':
-                dataset_num_proc = None
-            else:
-                import psutil
-                dataset_num_proc = min(max((psutil.cpu_count() or 1)+4, 2), 64)
-                memory_gb_left = psutil.virtual_memory().available / (1024**3)
-                if memory_gb_left <= 2: dataset_num_proc = 1
-                else: dataset_num_proc = min(dataset_num_proc, int(memory_gb_left))
+            from multiprocessing import cpu_count
+            dataset_num_proc = cpu_count()
         
         super().__init__(
             output_dir = output_dir,
+            overwrite_output_dir = overwrite_output_dir,
+            do_train = do_train,
+            do_eval = do_eval,
+            do_predict = do_predict,
+            eval_strategy = eval_strategy,
+            prediction_loss_only = prediction_loss_only,
             per_device_train_batch_size = per_device_train_batch_size,
-            num_train_epochs = num_train_epochs,
-            max_steps = max_steps,
+            per_device_eval_batch_size = per_device_eval_batch_size,
+            per_gpu_train_batch_size = per_gpu_train_batch_size,
+            per_gpu_eval_batch_size = per_gpu_eval_batch_size,
+            gradient_accumulation_steps = gradient_accumulation_steps,
+            eval_accumulation_steps = eval_accumulation_steps,
+            eval_delay = eval_delay,
+            torch_empty_cache_steps = torch_empty_cache_steps,
             learning_rate = learning_rate,
-            lr_scheduler_type = lr_scheduler_type,
-            lr_scheduler_kwargs = lr_scheduler_kwargs,
-            warmup_steps = warmup_steps,
-            optim = optim,
-            optim_args = optim_args,
             weight_decay = weight_decay,
             adam_beta1 = adam_beta1,
             adam_beta2 = adam_beta2,
             adam_epsilon = adam_epsilon,
-            optim_target_modules = optim_target_modules,
-            gradient_accumulation_steps = gradient_accumulation_steps,
-            average_tokens_across_devices = average_tokens_across_devices,
             max_grad_norm = max_grad_norm,
-            label_smoothing_factor = label_smoothing_factor,
+            num_train_epochs = num_train_epochs,
+            max_steps = max_steps,
+            lr_scheduler_type = lr_scheduler_type,
+            lr_scheduler_kwargs = lr_scheduler_kwargs,
+            warmup_ratio = warmup_ratio,
+            warmup_steps = warmup_steps,
+            log_level = log_level,
+            log_level_replica = log_level_replica,
+            log_on_each_node = log_on_each_node,
+            logging_dir = logging_dir,
+            logging_strategy = logging_strategy,
+            logging_first_step = logging_first_step,
+            logging_steps = logging_steps,
+            logging_nan_inf_filter = logging_nan_inf_filter,
+            save_strategy = save_strategy,
+            save_steps = save_steps,
+            save_total_limit = save_total_limit,
+            save_safetensors = save_safetensors,
+            save_on_each_node = save_on_each_node,
+            save_only_model = save_only_model,
+            restore_callback_states_from_checkpoint = restore_callback_states_from_checkpoint,
+            no_cuda = no_cuda,
+            use_cpu = use_cpu,
+            use_mps_device = use_mps_device,
+            seed = seed,
+            data_seed = data_seed,
+            jit_mode_eval = jit_mode_eval,
             bf16 = bf16,
             fp16 = fp16,
+            fp16_opt_level = fp16_opt_level,
+            half_precision_backend = half_precision_backend,
             bf16_full_eval = bf16_full_eval,
             fp16_full_eval = fp16_full_eval,
             tf32 = tf32,
-            gradient_checkpointing = gradient_checkpointing,
-            gradient_checkpointing_kwargs = gradient_checkpointing_kwargs,
-            torch_compile = torch_compile,
-            torch_compile_backend = torch_compile_backend,
-            torch_compile_mode = torch_compile_mode,
-            use_liger_kernel = use_liger_kernel,
-            liger_kernel_config = liger_kernel_config,
-            use_cache = use_cache,
-            neftune_noise_alpha = neftune_noise_alpha,
-            torch_empty_cache_steps = torch_empty_cache_steps,
-            auto_find_batch_size = auto_find_batch_size,
-            logging_strategy = logging_strategy,
-            logging_steps = logging_steps,
-            logging_first_step = logging_first_step,
-            log_on_each_node = log_on_each_node,
-            logging_nan_inf_filter = logging_nan_inf_filter,
-            include_num_input_tokens_seen = include_num_input_tokens_seen,
-            log_level = log_level,
-            log_level_replica = log_level_replica,
-            disable_tqdm = disable_tqdm,
-            report_to = report_to,
-            run_name = run_name,
-            project = project,
-            trackio_space_id = trackio_space_id,
-            eval_strategy = eval_strategy,
+            local_rank = local_rank,
+            ddp_backend = ddp_backend,
+            tpu_num_cores = tpu_num_cores,
+            tpu_metrics_debug = tpu_metrics_debug,
+            debug = debug,
+            dataloader_drop_last = dataloader_drop_last,
             eval_steps = eval_steps,
-            eval_delay = eval_delay,
-            per_device_eval_batch_size = per_device_eval_batch_size,
-            prediction_loss_only = prediction_loss_only,
-            eval_on_start = eval_on_start,
-            eval_do_concat_batches = eval_do_concat_batches,
-            eval_use_gather_object = eval_use_gather_object,
-            eval_accumulation_steps = eval_accumulation_steps,
-            batch_eval_metrics = batch_eval_metrics,
-            save_only_model = save_only_model,
-            save_strategy = save_strategy,
-            save_steps = save_steps,
-            save_on_each_node = save_on_each_node,
-            save_total_limit = save_total_limit,
-            enable_jit_checkpoint = enable_jit_checkpoint,
-            push_to_hub = push_to_hub,
-            hub_token = hub_token,
-            hub_private_repo = hub_private_repo,
-            hub_model_id = hub_model_id,
-            hub_strategy = hub_strategy,
-            hub_always_push = hub_always_push,
-            hub_revision = hub_revision,
+            dataloader_num_workers = dataloader_num_workers,
+            dataloader_prefetch_factor = dataloader_prefetch_factor,
+            past_index = past_index,
+            run_name = run_name,
+            disable_tqdm = disable_tqdm,
+            remove_unused_columns = remove_unused_columns,
+            label_names = label_names,
             load_best_model_at_end = load_best_model_at_end,
             metric_for_best_model = metric_for_best_model,
             greater_is_better = greater_is_better,
             ignore_data_skip = ignore_data_skip,
-            restore_callback_states_from_checkpoint = restore_callback_states_from_checkpoint,
-            full_determinism = full_determinism,
-            seed = seed,
-            data_seed = data_seed,
-            use_cpu = use_cpu,
+            fsdp = fsdp,
+            fsdp_min_num_params = fsdp_min_num_params,
+            fsdp_config = fsdp_config,
+            fsdp_transformer_layer_cls_to_wrap = fsdp_transformer_layer_cls_to_wrap,
             accelerator_config = accelerator_config,
             parallelism_config = parallelism_config,
-            dataloader_drop_last = dataloader_drop_last,
-            dataloader_num_workers = dataloader_num_workers,
-            dataloader_pin_memory = dataloader_pin_memory,
-            dataloader_persistent_workers = dataloader_persistent_workers,
-            dataloader_prefetch_factor = dataloader_prefetch_factor,
-            remove_unused_columns = remove_unused_columns,
-            label_names = label_names,
-            train_sampling_strategy = train_sampling_strategy,
+            deepspeed = deepspeed,
+            label_smoothing_factor = label_smoothing_factor,
+            optim = optim,
+            optim_args = optim_args,
+            adafactor = adafactor,
+            group_by_length = group_by_length,
             length_column_name = length_column_name,
+            report_to = report_to,
+            project = project,
+            trackio_space_id = trackio_space_id,
             ddp_find_unused_parameters = ddp_find_unused_parameters,
             ddp_bucket_cap_mb = ddp_bucket_cap_mb,
             ddp_broadcast_buffers = ddp_broadcast_buffers,
-            ddp_backend = ddp_backend,
-            ddp_timeout = ddp_timeout,
-            fsdp = fsdp,
-            fsdp_config = fsdp_config,
-            deepspeed = deepspeed,
-            debug = debug,
+            dataloader_pin_memory = dataloader_pin_memory,
+            dataloader_persistent_workers = dataloader_persistent_workers,
             skip_memory_metrics = skip_memory_metrics,
-            do_train = do_train,
-            do_eval = do_eval,
-            do_predict = do_predict,
+            use_legacy_prediction_loop = use_legacy_prediction_loop,
+            push_to_hub = push_to_hub,
             resume_from_checkpoint = resume_from_checkpoint,
-            warmup_ratio = warmup_ratio,
-            logging_dir = logging_dir,
-            local_rank = local_rank,
+            hub_model_id = hub_model_id,
+            hub_strategy = hub_strategy,
+            hub_token = hub_token,
+            hub_private_repo = hub_private_repo,
+            hub_always_push = hub_always_push,
+            hub_revision = hub_revision,
+            gradient_checkpointing = gradient_checkpointing,
+            gradient_checkpointing_kwargs = gradient_checkpointing_kwargs,
+            include_inputs_for_metrics = include_inputs_for_metrics,
+            eval_do_concat_batches = eval_do_concat_batches,
+            fp16_backend = fp16_backend,
+            push_to_hub_model_id = push_to_hub_model_id,
+            push_to_hub_organization = push_to_hub_organization,
+            push_to_hub_token = push_to_hub_token,
+            mp_parameters = mp_parameters,
+            auto_find_batch_size = auto_find_batch_size,
+            full_determinism = full_determinism,
+            torchdynamo = torchdynamo,
+            ray_scope = ray_scope,
+            ddp_timeout = ddp_timeout,
+            torch_compile = torch_compile,
+            torch_compile_backend = torch_compile_backend,
+            torch_compile_mode = torch_compile_mode,
+            include_tokens_per_second = include_tokens_per_second,
+            include_num_input_tokens_seen = include_num_input_tokens_seen,
+            neftune_noise_alpha = neftune_noise_alpha,
+            optim_target_modules = optim_target_modules,
+            batch_eval_metrics = batch_eval_metrics,
+            eval_on_start = eval_on_start,
+            use_liger_kernel = use_liger_kernel,
+            liger_kernel_config = liger_kernel_config,
+            eval_use_gather_object = eval_use_gather_object,
+            average_tokens_across_devices = average_tokens_across_devices,
             max_length = max_length,
             max_prompt_length = max_prompt_length,
             max_completion_length = max_completion_length,
@@ -722,36 +418,12 @@ class UnslothBCOConfig(BCOConfig):
             max_density_ratio = max_density_ratio,**kwargs)
         self.vllm_sampling_params = vllm_sampling_params
         self.unsloth_num_chunks = unsloth_num_chunks
-        if unsloth_grpo_mini_batch is not None:
-            if self.generation_batch_size >= unsloth_grpo_mini_batch:
-                self.unsloth_grpo_mini_batch = unsloth_grpo_mini_batch
-            else:
-                raise ValueError(
-                    f"Unsloth GRPO mini batch size needs to be less than or equal to the effective generation batch size, "
-                    f"which is self.per_device_train_batch_size * gradient_accumulation_steps."
-                )
-        self.unsloth_logit_chunk_multiplier = unsloth_logit_chunk_multiplier
-        self.max_seq_length = max_seq_length
-
 pass
 
-class _UnslothBCOTrainer(BaseTrainer):
+class _UnslothBCOTrainer(Trainer):
     r""""""
 
     _tag_names = ["trl", "bco"]
-    _name = "BCO"
-    _paper = {
-        "title": "Binary Classifier Optimization for Large Language Model Alignment",
-        "id": "2404.04656",
-        # docstyle-ignore
-        "citation": textwrap.dedent("""\
-            @article{jung2024binary,
-                title        = {{Binary Classifier Optimization for Large Language Model Alignment}},
-                author       = {Seungjae Jung and Gunsoo Han and Daniel Wontae Nam and Kyoung{-}Woon On},
-                year         = 2024,
-                eprint       = {arXiv:2404.04656}
-            }"""),
-    }
 
     def __init__(
         self,
@@ -775,22 +447,15 @@ class _UnslothBCOTrainer(BaseTrainer):
         embedding_func: Optional[Callable] = None,
         embedding_tokenizer: Optional[PreTrainedTokenizerBase] = None,
     ):
-        if not os.environ.get("TRL_EXPERIMENTAL_SILENCE"):
-            warnings.warn(
-                "This trainer will soon be moved to trl.experimental and is a candidate for removal. If you rely on "
-                "it and want it to remain, please share your comments here: "
-                "https://github.com/huggingface/trl/issues/4223. Silence this warning by setting environment variable "
-                "TRL_EXPERIMENTAL_SILENCE=1."
-            )
-        if embedding_func is not None and not (is_sklearn_available() and is_joblib_available()):
+        if not is_sklearn_available():
             raise ImportError(
-                "BCOTrainer with UDM requires the scikit-learn and joblib libraries. Please install it with `pip install scikit-learn joblib`."
+                "BCOTrainer requires the scikit-learn library. Please install it with `pip install scikit-learn`."
             )
 
         if type(args) is TrainingArguments:
             raise ValueError("Please use `BCOConfig` instead `TrainingArguments`.")
 
-        if not isinstance(model, str) and model is not None and ref_model is model:
+        if not isinstance(model, str) and ref_model is model:
             raise ValueError(
                 "`model` and `ref_model` cannot be the same object. If you want `ref_model` to be the "
                 "same as `model`, you must mass a copy of it, or `None` if you use peft."
@@ -802,16 +467,16 @@ class _UnslothBCOTrainer(BaseTrainer):
             raise ValueError("You passed model_kwargs to the BCOTrainer. But your model is already instantiated.")
         else:
             model_init_kwargs = args.model_init_kwargs
-            dtype = model_init_kwargs.get("dtype")
-            if dtype is not None:
+            torch_dtype = model_init_kwargs.get("torch_dtype")
+            if torch_dtype is not None:
                 # Convert to `torch.dtype` if an str is passed
-                if isinstance(dtype, str) and dtype != "auto":
-                    dtype = getattr(torch, dtype)
-                if dtype != "auto" and not isinstance(dtype, torch.dtype):
+                if isinstance(torch_dtype, str) and torch_dtype != "auto":
+                    torch_dtype = getattr(torch, torch_dtype)
+                if torch_dtype != "auto" and not isinstance(torch_dtype, torch.dtype):
                     raise ValueError(
-                        f"Invalid `dtype` passed to the BCOConfig. Expected a string with either `torch.dtype` or 'auto', but got {dtype}."
+                        f"Invalid `torch_dtype` passed to the BCOConfig. Expected a string with either `torch.dtype` or 'auto', but got {torch_dtype}."
                     )
-                model_init_kwargs["dtype"] = dtype
+                model_init_kwargs["torch_dtype"] = torch_dtype
 
         if args.ref_model_init_kwargs is None:
             ref_model_init_kwargs = {}
@@ -821,16 +486,16 @@ class _UnslothBCOTrainer(BaseTrainer):
             )
         else:
             ref_model_init_kwargs = args.ref_model_init_kwargs
-            dtype = ref_model_init_kwargs.get("dtype")
-            if dtype is not None:
+            torch_dtype = ref_model_init_kwargs.get("torch_dtype")
+            if torch_dtype is not None:
                 # Convert to `torch.dtype` if an str is passed
-                if isinstance(dtype, str) and dtype != "auto":
-                    dtype = getattr(torch, dtype)
-                if dtype != "auto" and not isinstance(dtype, torch.dtype):
+                if isinstance(torch_dtype, str) and torch_dtype != "auto":
+                    torch_dtype = getattr(torch, torch_dtype)
+                if torch_dtype != "auto" and not isinstance(torch_dtype, torch.dtype):
                     raise ValueError(
-                        f"Invalid `dtype` passed to the BCOConfig. Expected a string with either `torch.dtype` or 'auto', but got {dtype}."
+                        f"Invalid `torch_dtype` passed to the BCOConfig. Expected a string with either `torch.dtype` or 'auto', but got {torch_dtype}."
                     )
-                ref_model_init_kwargs["dtype"] = dtype
+                ref_model_init_kwargs["torch_dtype"] = torch_dtype
 
         if isinstance(model, str):
             model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
@@ -864,7 +529,7 @@ class _UnslothBCOTrainer(BaseTrainer):
                     prepare_model_kwargs["gradient_checkpointing_kwargs"] = args.gradient_checkpointing_kwargs
 
                 model = prepare_model_for_kbit_training(model, **prepare_model_kwargs)
-            elif args.gradient_checkpointing:
+            elif getattr(args, "gradient_checkpointing", False):
                 # For backward compatibility with older versions of transformers
                 if hasattr(model, "enable_input_require_grads"):
                     model.enable_input_require_grads()
@@ -885,7 +550,7 @@ class _UnslothBCOTrainer(BaseTrainer):
         # For models that use gradient_checkpointing, we need to attach a hook that enables input
         # to explicitly have `requires_grad=True`, otherwise training will either silently
         # fail or completely fail.
-        elif args.gradient_checkpointing:
+        elif getattr(args, "gradient_checkpointing", False):
             # For backward compatibility with older versions of transformers
             if hasattr(model, "enable_input_require_grads"):
                 model.enable_input_require_grads()
@@ -926,18 +591,20 @@ class _UnslothBCOTrainer(BaseTrainer):
                 "max_length or a processing_class must be specified when using the default DPODataCollatorWithPadding"
             )
         if args.max_length is None:
-            logger.warning(
+            warnings.warn(
                 "When using DPODataCollatorWithPadding, you should set `max_length` in the `BCOConfig`. "
                 "It will be set to `512` by default, but you should do it yourself in the future.",
+                UserWarning,
             )
             max_length = 512
         if args.max_length is not None:
             max_length = args.max_length
 
         if args.max_prompt_length is None:
-            logger.warning(
+            warnings.warn(
                 "When using DPODataCollatorWithPadding, you should set `max_prompt_length` in the `BCOConfig`. "
                 "It will be set to `128` by default, but you should do it yourself in the future.",
+                UserWarning,
             )
             max_prompt_length = 128
         if args.max_prompt_length is not None:
@@ -945,9 +612,10 @@ class _UnslothBCOTrainer(BaseTrainer):
 
         max_completion_length = None
         if args.max_completion_length is None and self.is_encoder_decoder:
-            logger.warning(
+            warnings.warn(
                 "When using DPODataCollatorWithPadding with an encoder decoder architecture, you should set `max_completion_length` in the BCOTrainer's init"
                 " it will be set to `128` by default, but you should do it yourself in the future.",
+                UserWarning,
             )
             max_completion_length = 128
         if args.max_completion_length is not None and self.is_encoder_decoder:
@@ -963,9 +631,10 @@ class _UnslothBCOTrainer(BaseTrainer):
             if args.remove_unused_columns:
                 args.remove_unused_columns = False
                 # warn users
-                logger.warning(
+                warnings.warn(
                     "When using DPODataCollatorWithPadding, you should set `remove_unused_columns=False` in your BCOConfig"
                     " we have set it for you, but you should do it yourself in the future.",
+                    UserWarning,
                 )
 
             self.use_dpo_data_collator = True
@@ -1000,11 +669,12 @@ class _UnslothBCOTrainer(BaseTrainer):
         self.aux_loss_enabled = getattr(model.config, "output_router_logits", False)
         self.aux_loss_coef = getattr(model.config, "router_aux_loss_coef", 0.0)
         if self.aux_loss_enabled and self.aux_loss_coef == 0.0:
-            logger.warning(
+            warnings.warn(
                 "You set `output_router_logits` to `True` in the model config, but `router_aux_loss_coef` is set to "
                 "`0.0`, meaning the auxiliary loss will not be used. Either set `router_aux_loss_coef` to a value "
                 "greater than `0.0`, or set `output_router_logits` to `False` if you don't want to use the auxiliary "
                 "loss.",
+                UserWarning,
             )
 
         # Underlying Distribution Matching argument
@@ -1020,34 +690,21 @@ class _UnslothBCOTrainer(BaseTrainer):
         # issued.
         model.warnings_issued["estimate_tokens"] = True
 
-        with PartialState().main_process_first():
-            # Extract the prompt if needed
-            train_dataset = train_dataset.map(
-                maybe_extract_prompt, num_proc=args.dataset_num_proc, desc="Extracting prompt from train dataset"
-            )
-            # Unpair the dataset if needed
-            train_dataset = maybe_unpair_preference_dataset(
-                train_dataset, args.dataset_num_proc, desc="Unpairing train dataset"
-            )
+        with PartialState().local_main_process_first():
             # Apply the chat template if needed
             train_dataset = train_dataset.map(
                 maybe_apply_chat_template, fn_kwargs={"tokenizer": processing_class}, num_proc=args.dataset_num_proc
             )
             if eval_dataset is not None:
-                # Extract the prompt if needed
-                eval_dataset = eval_dataset.map(
-                    maybe_extract_prompt, num_proc=args.dataset_num_proc, desc="Extracting prompt from eval dataset"
-                )
-                # Unpair the dataset if needed
-                eval_dataset = maybe_unpair_preference_dataset(
-                    eval_dataset, args.dataset_num_proc, desc="Unpairing eval dataset"
-                )
                 eval_dataset = eval_dataset.map(
                     maybe_apply_chat_template,
                     fn_kwargs={"tokenizer": processing_class},
                     num_proc=args.dataset_num_proc,
                 )
-
+            # Shuffle the datasets
+            train_dataset = train_dataset.shuffle(seed=args.data_seed)
+            if eval_dataset is not None:
+                eval_dataset = eval_dataset.shuffle(seed=args.data_seed)
             # Tokenize and prepare the training datasets
             train_dataset = train_dataset.map(
                 _tokenize,
@@ -1110,6 +767,9 @@ class _UnslothBCOTrainer(BaseTrainer):
                 lambda x: not x["label"], num_proc=args.dataset_num_proc, desc="Filtering undesirable examples"
             )
 
+            desirable = desirable.shuffle(seed=args.data_seed)
+            undesirable = undesirable.shuffle(seed=args.data_seed)
+
         super().__init__(
             model=model,
             args=args,
@@ -1152,13 +812,13 @@ class _UnslothBCOTrainer(BaseTrainer):
                 )
         else:
             if self.is_deepspeed_enabled:
-                self.ref_model = prepare_deepspeed(self.ref_model, self.accelerator)
+                self.ref_model = self._prepare_deepspeed(self.ref_model)
             else:
                 self.ref_model = self.accelerator.prepare_model(self.ref_model, evaluation_mode=True)
 
         self.running = RunningMoments(accelerator=self.accelerator)
 
-        if self.embedding_func is None or args.resume_from_checkpoint:
+        if self.embedding_func is None:
             return
 
         chosen_embeddings = self._get_sample_prompt_embeddings(desirable, sample_size=self.args.prompt_sample_size)
@@ -1172,13 +832,6 @@ class _UnslothBCOTrainer(BaseTrainer):
         self.clf = LogisticRegression(class_weight="balanced").fit(
             embeddings.cpu().float().numpy(), labels.cpu().numpy()
         )
-        chosen_mean = self.clf.score(
-            chosen_embeddings.cpu().float().numpy(), torch.ones_like(chosen_embeddings[:, 0]).cpu().numpy()
-        )
-        rejected_mean = self.clf.score(
-            rejected_embeddings.cpu().float().numpy(), torch.zeros_like(rejected_embeddings[:, 0]).cpu().numpy()
-        )
-        logger.info(f"UDM classifier training scores: chosen: {chosen_mean}, rejected: {rejected_mean}")
 
     @property
     def match_underlying_distribution(self):
@@ -1186,8 +839,8 @@ class _UnslothBCOTrainer(BaseTrainer):
 
     def _get_chosen_prob(self, prompt_embeddings: torch.FloatTensor) -> torch.FloatTensor:
         """
-        Calculates the probability if the given prompt embedding is from desirable dataset. This function calculates
-        the probability in the process and ensemble across processes.
+        Calculates the probability if the given prompt embedding is from desirable dataset.
+        This function calculates the probability in the process and ensemble across processes.
         """
         dtype = prompt_embeddings.dtype
         device = prompt_embeddings.device
@@ -1215,7 +868,8 @@ class _UnslothBCOTrainer(BaseTrainer):
 
     def _vectorize_prompt(self, input_ids: torch.LongTensor, attention_mask: torch.LongTensor) -> torch.FloatTensor:
         """
-        Replaces processing_class.pad_token_id to embedding_tokenizer.pad_token_id and applies self.embedding_func
+        Replaces processing_class.pad_token_id to embedding_tokenizer.pad_token_id
+        and applies self.embedding_func
         """
         input_ids = torch.where(
             input_ids == self.processing_class.pad_token_id,
@@ -1244,9 +898,8 @@ class _UnslothBCOTrainer(BaseTrainer):
             attention_mask=batch["embedding_attention_mask"],
         )
 
-        labels = torch.tensor(batch["label"], dtype=torch.bool, device=embeddings.device)
-        chosen_idx = torch.where(labels)[0]
-        rejected_idx = torch.where(~labels)[0]
+        chosen_idx = [i for i in range(len(batch["label"])) if batch["label"][i] is True]
+        rejected_idx = [i for i in range(len(batch["label"])) if batch["label"][i] is False]
 
         chosen_embeddings = embeddings[chosen_idx, ...]
         rejected_embeddings = embeddings[rejected_idx, ...]
@@ -1255,7 +908,8 @@ class _UnslothBCOTrainer(BaseTrainer):
 
     def _get_sample_prompt_embeddings(self, dataset: Dataset, sample_size: int = 512) -> torch.FloatTensor:
         """
-        Sample instances from dataset and get prompt embeddings. Used for density ratio classifier training.
+        Sample instances from dataset and get prompt embeddings.
+        Used for density ratio classifier training.
         """
         n_samples = min(len(dataset), sample_size)
         rand_indices = np.random.choice(len(dataset), size=(n_samples,))
@@ -1285,24 +939,53 @@ class _UnslothBCOTrainer(BaseTrainer):
 
         return all_embeddings
 
+    def _prepare_deepspeed(self, model: PreTrainedModelWrapper):
+        # Adapted from accelerate: https://github.com/huggingface/accelerate/blob/739b135f8367becb67ffaada12fe76e3aa60fefd/src/accelerate/accelerator.py#L1473
+        deepspeed_plugin = self.accelerator.state.deepspeed_plugin
+        config_kwargs = deepcopy(deepspeed_plugin.deepspeed_config)
+
+        if model is not None:
+            if hasattr(model, "config"):
+                hidden_size = (
+                    max(model.config.hidden_sizes)
+                    if getattr(model.config, "hidden_sizes", None)
+                    else getattr(model.config, "hidden_size", None)
+                )
+                if hidden_size is not None and config_kwargs["zero_optimization"]["stage"] == 3:
+                    # Note that `stage3_prefetch_bucket_size` can produce DeepSpeed messages like: `Invalidate trace cache @ step 0: expected module 1, but got module 0`
+                    # This is expected and is not an error, see: https://github.com/microsoft/DeepSpeed/discussions/4081
+                    config_kwargs.update(
+                        {
+                            "zero_optimization.reduce_bucket_size": hidden_size * hidden_size,
+                            "zero_optimization.stage3_param_persistence_threshold": 10 * hidden_size,
+                            "zero_optimization.stage3_prefetch_bucket_size": 0.9 * hidden_size * hidden_size,
+                        }
+                    )
+
+        # If ZeRO-3 is used, we shard both the active and reference model.
+        # Otherwise, we assume the reference model fits in memory and is initialized on each device with ZeRO disabled (stage 0)
+        if config_kwargs["zero_optimization"]["stage"] != 3:
+            config_kwargs["zero_optimization"]["stage"] = 0
+        model, *_ = deepspeed.initialize(model=model, config=config_kwargs)
+        model.eval()
+        return model
+
     def _save_optimizer_and_scheduler(self, output_dir):
-        output_dir = output_dir if output_dir is not None else self.args.output_dir
         super()._save_optimizer_and_scheduler(output_dir)
 
-        if self.accelerator.is_main_process:
-            # When saving optimizer and scheduler to checkpoint, save also the running delta object.
-            self.running.save_to_json(os.path.join(output_dir, RUNNING_NAME))
+        # When saving optimizer and scheduler to checkpoint, save also the running delta object.
+        output_dir = output_dir if output_dir is not None else self.args.output_dir
 
-            if self.match_underlying_distribution:
-                joblib.dump(self.clf, os.path.join(output_dir, CLF_NAME), compress=True)
+        self.running.save_to_json(os.path.join(output_dir, RUNNING_NAME))
+
+        if self.match_underlying_distribution:
+            torch.save(self.clf.get_params(), os.path.join(output_dir, CLF_NAME))
 
     def _load_optimizer_and_scheduler(self, checkpoint):
-        if checkpoint is None:
-            logger.warning_once(f"Missing Checkpoint {checkpoint}")
-            return
-
         super()._load_optimizer_and_scheduler(checkpoint)
 
+        if checkpoint is None:
+            return
         # when loading optimizer and scheduler from checkpoint, also load the running delta object.
         running_file = os.path.join(checkpoint, RUNNING_NAME)
         if os.path.isfile(running_file):
@@ -1310,17 +993,15 @@ class _UnslothBCOTrainer(BaseTrainer):
 
         if self.match_underlying_distribution:
             clf_file = os.path.join(checkpoint, CLF_NAME)
-            if os.path.isfile(clf_file):
-                self.clf = joblib.load(clf_file)
+            if os.path.isfile(running_file):
+                self.clf.set_params(**torch.load(clf_file, weights_only=True, map_location="cpu"))
 
     @contextmanager
     def null_ref_context(self):
         """Context manager for handling null reference model (that is, peft adapter manipulation)."""
-        with (
-            self.accelerator.unwrap_model(self.model).disable_adapter()
-            if self.is_peft_model and not self.ref_adapter_name
-            else nullcontext()
-        ):
+        with self.accelerator.unwrap_model(
+            self.model
+        ).disable_adapter() if self.is_peft_model and not self.ref_adapter_name else nullcontext():
             if self.ref_adapter_name:
                 self.model.set_adapter(self.ref_adapter_name)
             yield
@@ -1462,22 +1143,11 @@ class _UnslothBCOTrainer(BaseTrainer):
 
         Args:
             logits: Logits of the model (unnormalized). Shape: (batch_size, sequence_length, vocab_size)
-            labels:
-                Labels for which to compute the log probabilities. Label tokens with a value of label_pad_token_id are
-                ignored. Shape: (batch_size, sequence_length)
-            average_log_prob:
-                If True, return the average log probability per (non-masked) token. Otherwise, return the sum of the
-                log probabilities of the (non-masked) tokens.
-            label_pad_token_id:
-                The label value to ignore when computing log probabilities.
-            is_encoder_decoder:
-                Whether the model is an encoder-decoder model. If True, the labels are not shifted, and the logits are
-                assumed to already be aligned with the labels. If False, the labels are shifted to the right by one
-                position, and the logits are assumed to be aligned with the shifted labels.
+            labels: Labels for which to compute the log probabilities. Label tokens with a value of label_pad_token_id are ignored. Shape: (batch_size, sequence_length)
+            average_log_prob: If True, return the average log probability per (non-masked) token. Otherwise, return the sum of the log probabilities of the (non-masked) tokens.
 
         Returns:
-            A tensor of shape (batch_size,) containing the average/sum log probabilities of the given labels under the
-            given logits.
+            A tensor of shape (batch_size,) containing the average/sum log probabilities of the given labels under the given logits.
         """
         if logits.shape[:-1] != labels.shape:
             raise ValueError("Logits (batch and sequence length dim) and labels must have the same shape.")
@@ -1494,7 +1164,7 @@ class _UnslothBCOTrainer(BaseTrainer):
         # dummy token; we'll ignore the losses on these tokens later
         labels[labels == label_pad_token_id] = 0
 
-        per_token_logps = selective_log_softmax(logits, labels)
+        per_token_logps = torch.gather(logits.log_softmax(-1), dim=2, index=labels.unsqueeze(2)).squeeze(2)
 
         if average_log_prob:
             return (per_token_logps * loss_mask).sum(-1) / loss_mask.sum(-1)
@@ -1567,43 +1237,49 @@ class _UnslothBCOTrainer(BaseTrainer):
         reference_rejected_logps: torch.FloatTensor,
         chosen_embeddings: Optional[torch.FloatTensor],
         rejected_embeddings: Optional[torch.FloatTensor],
-        do_train: bool = True,
     ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """Compute the BCO loss for a batch of policy and reference model log probabilities.
 
         Args:
-            policy_chosen_logps:
-                Log probabilities of the policy model for the chosen responses. Shape: (num(chosen) in batch_size,)
-            policy_rejected_logps:
-                Log probabilities of the policy model for the rejected responses. Shape: (num(rejected) in batch_size,)
-            reference_chosen_logps:
-                Log probabilities of the reference model for the chosen responses. Shape: (num(chosen) in batch_size,)
-            reference_rejected_logps:
-                Log probabilities of the reference model for the rejected responses. Shape: (num(rejected) in
-                batch_size,)
+            policy_chosen_logps: Log probabilities of the policy model for the chosen responses. Shape: (num(chosen) in batch_size,)
+            policy_rejected_logps: Log probabilities of the policy model for the rejected responses. Shape: (num(rejected) in batch_size,)
+            reference_chosen_logps: Log probabilities of the reference model for the chosen responses. Shape: (num(chosen) in batch_size,)
+            reference_rejected_logps: Log probabilities of the reference model for the rejected responses. Shape: (num(rejected) in batch_size,)
             chosen_embeddings: embeddings of desirable prompts
             rejected_embeddings: embeddings of undesirable prompts
-            do_train: whether to update the running delta value. Default is True.
 
         Returns:
-            A tuple of four tensors: (losses, chosen_rewards, rejected_rewards, delta). The losses tensor contains the
-            BCO loss for each example in the batch. The chosen_rewards and rejected_rewards tensors contain the rewards
-            for the chosen and rejected responses, respectively. The delta value contains the moving average of all
-            implicit rewards.
+            A tuple of four tensors: (losses, chosen_rewards, rejected_rewards, delta).
+            The losses tensor contains the BCO loss for each example in the batch.
+            The chosen_rewards and rejected_rewards tensors contain the rewards for the chosen and rejected responses, respectively.
+            The delta value contains the moving average of all implicit rewards.
         """
 
-        chosen_logratios = policy_chosen_logps - reference_chosen_logps
-        chosen_rewards = self.beta * chosen_logratios
+        if policy_chosen_logps.shape[0] != 0 or reference_chosen_logps.shape[0] != 0:
+            chosen_logratios = policy_chosen_logps - reference_chosen_logps
+            chosen_rewards = self.beta * chosen_logratios
+        else:
+            # lists can't be empty -- if they are, then accelerate.gather will hang
+            chosen_losses = torch.Tensor([]).to(self.accelerator.device)
+            chosen_rewards = torch.Tensor([]).to(self.accelerator.device)
 
-        rejected_logratios = policy_rejected_logps - reference_rejected_logps
-        rejected_rewards = self.beta * rejected_logratios
+        if policy_rejected_logps.shape[0] != 0 or reference_rejected_logps.shape[0] != 0:
+            rejected_logratios = policy_rejected_logps - reference_rejected_logps
+            rejected_rewards = self.beta * rejected_logratios
+        else:
+            # lists can't be empty -- if they are, then accelerate.gather will hang
+            rejected_losses = torch.Tensor([]).to(self.accelerator.device)
+            rejected_rewards = torch.Tensor([]).to(self.accelerator.device)
 
-        if do_train:
-            self.running.update(torch.cat((chosen_rewards, rejected_rewards), 0).detach())
-        delta = torch.as_tensor(self.running.mean, device=chosen_rewards.device)
+        rewards = torch.cat((chosen_rewards, rejected_rewards), 0).mean().detach()
+        self.running.update(rewards)
+        delta = self.running.mean
 
-        chosen_losses = -F.logsigmoid(chosen_rewards - delta)
-        rejected_losses = -F.logsigmoid(-(rejected_rewards - delta))
+        if policy_chosen_logps.shape[0] != 0 or reference_chosen_logps.shape[0] != 0:
+            chosen_losses = -F.logsigmoid(chosen_rewards - delta)
+
+        if policy_rejected_logps.shape[0] != 0 or reference_rejected_logps.shape[0] != 0:
+            rejected_losses = -F.logsigmoid(-(rejected_rewards - delta))
 
         if self.match_underlying_distribution:
             chosen_weight = torch.ones_like(chosen_losses)
@@ -1613,13 +1289,12 @@ class _UnslothBCOTrainer(BaseTrainer):
         else:
             losses = torch.cat((chosen_losses, rejected_losses), dim=0)
 
-        return losses, chosen_rewards, rejected_rewards, delta
+        return losses, chosen_rewards, rejected_rewards, torch.as_tensor(delta)
 
     def get_batch_loss_metrics(
         self,
         model,
         batch: dict[str, Union[list, torch.LongTensor]],
-        do_train: bool = True,
     ):
         """Compute the BCO loss and other metrics for the given batch of inputs for train or test."""
         metrics = {}
@@ -1669,7 +1344,6 @@ class _UnslothBCOTrainer(BaseTrainer):
             reference_rejected_logps,
             chosen_embeddings,
             rejected_embeddings,
-            do_train=do_train,
         )
         metrics["delta"] = self.accelerator.gather_for_metrics(delta).mean().item()
 
@@ -1716,9 +1390,7 @@ class _UnslothBCOTrainer(BaseTrainer):
         return_outputs=False,
         num_items_in_batch=None,
     ) -> Union[torch.Tensor, tuple[torch.Tensor, dict[str, torch.Tensor]]]:
-        compute_loss_context_manager = (
-            autocast(self.accelerator.device.type) if self._peft_has_been_casted_to_bf16 else nullcontext()
-        )
+        compute_loss_context_manager = amp.autocast("cuda") if self._peft_has_been_casted_to_bf16 else nullcontext()
 
         with compute_loss_context_manager:
             loss, metrics = self.get_batch_loss_metrics(model, inputs)
@@ -1737,21 +1409,17 @@ class _UnslothBCOTrainer(BaseTrainer):
         for key, value in metrics.items():
             self._stored_metrics[train_eval][key].append(value)
 
-    def _get_train_sampler(self, dataset: Optional[Dataset] = None) -> Optional[torch.utils.data.Sampler]:
-        if dataset is None:
-            dataset = self.train_dataset
-        if dataset is None or not has_length(dataset):
+    def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
+        if self.train_dataset is None or not has_length(self.train_dataset):
             return None
-        return SequentialSampler(dataset)
+        return SequentialSampler(self.train_dataset)
 
     def generate_from_model_and_ref(self, model, batch: dict[str, torch.LongTensor]) -> tuple[str, str]:
         """Generate samples from the model and reference model for the given batch of inputs."""
 
         # If one uses `generate_during_eval` with peft + bf16, we need to explicitly call generate with
-        # the torch amp context manager as some hidden states are silently casted to full precision.
-        generate_context_manager = (
-            autocast(self.accelerator.device.type) if self._peft_has_been_casted_to_bf16 else nullcontext()
-        )
+        # the torch cuda amp context manager as some hidden states are silently casted to full precision.
+        generate_context_manager = amp.autocast("cuda") if self._peft_has_been_casted_to_bf16 else nullcontext()
         with generate_context_manager:
             policy_output = model.generate(
                 input_ids=batch["prompt_input_ids"],
@@ -1804,11 +1472,9 @@ class _UnslothBCOTrainer(BaseTrainer):
             else:
                 ignore_keys = []
 
-        prediction_context_manager = (
-            autocast(self.accelerator.device.type) if self._peft_has_been_casted_to_bf16 else nullcontext()
-        )
+        prediction_context_manager = amp.autocast("cuda") if self._peft_has_been_casted_to_bf16 else nullcontext()
         with torch.no_grad(), prediction_context_manager:
-            loss, metrics = self.get_batch_loss_metrics(model, inputs, do_train=False)
+            loss, metrics = self.get_batch_loss_metrics(model, inputs)
 
         # force log the metrics
         if self.accelerator.is_main_process:
@@ -1818,13 +1484,12 @@ class _UnslothBCOTrainer(BaseTrainer):
             return (loss.detach(), None, None)
 
         # logits for the chosen and rejected samples from model
-        logits_dict = {}
-        if "logits/chosen_sum" in metrics:
-            logits_dict["eval_logits/chosen"] = metrics["logits/chosen_sum"]
-        if "logits/rejected_sum" in metrics:
-            logits_dict["eval_logits/rejected"] = metrics["logits/rejected_sum"]
-        logits = [v for k, v in logits_dict.items() if k not in ignore_keys]
-        logits = torch.tensor(logits, device=self.accelerator.device)
+        logits_dict = {
+            "eval_logits/chosen": metrics["logits/chosen"],
+            "eval_logits/rejected": metrics["logits/rejected"],
+        }
+        logits = tuple(v.unsqueeze(dim=0) for k, v in logits_dict.items() if k not in ignore_keys)
+        logits = torch.stack(logits).mean(axis=1).to(self.accelerator.device)
         labels = torch.zeros(logits.shape[0], device=self.accelerator.device)
 
         return (loss.detach(), logits, labels)
@@ -1838,8 +1503,8 @@ class _UnslothBCOTrainer(BaseTrainer):
         metric_key_prefix: str = "eval",
     ) -> EvalLoopOutput:
         """
-        Overriding built-in evaluation loop to store metrics for each batch. Prediction/evaluation loop, shared by
-        `Trainer.evaluate()` and `Trainer.predict()`.
+        Overriding built-in evaluation loop to store metrics for each batch.
+        Prediction/evaluation loop, shared by `Trainer.evaluate()` and `Trainer.predict()`.
 
         Works both with or without labels.
         """
@@ -1855,12 +1520,11 @@ class _UnslothBCOTrainer(BaseTrainer):
             random_batch = self.data_collator(random_batch_dataset)
             random_batch = self._prepare_inputs(random_batch)
 
-            target_labels = torch.tensor(random_batch["label"], dtype=torch.bool, device=self.accelerator.device)
-            target_indices = torch.where(~target_labels)[0]
+            target_indicies = [i for i in range(len(random_batch["label"])) if random_batch["label"][i] is False]
             target_batch = {
-                "prompt_input_ids": random_batch["prompt_input_ids"][target_indices],
-                "prompt_attention_mask": random_batch["prompt_attention_mask"][target_indices],
-                "prompt": itemgetter(*target_indices)(random_batch["prompt"]),
+                "prompt_input_ids": random_batch["prompt_input_ids"][target_indicies],
+                "prompt_attention_mask": random_batch["prompt_attention_mask"][target_indicies],
+                "prompt": itemgetter(*target_indicies)(random_batch["prompt"]),
             }
             policy_output_decoded, ref_output_decoded = self.generate_from_model_and_ref(self.model, target_batch)
 
@@ -1894,7 +1558,7 @@ class _UnslothBCOTrainer(BaseTrainer):
         Args:
             logs (`dict[str, float]`):
                 The values to log.
-            start_time (`float`, *optional*):
+            start_time (`float` or `None`, *optional*, defaults to `None`):
                 Start time of the training.
         """
         # logs either has 'loss' or 'eval_loss'
@@ -1920,45 +1584,93 @@ class _UnslothBCOTrainer(BaseTrainer):
         for key, metrics in self._stored_metrics[train_eval].items():
             logs[f"{prefix}{key}"] = torch.Tensor(metrics).mean().item()
         del self._stored_metrics[train_eval]
-        return super().log(logs, start_time)
 
-    # Ensure the model card is saved along with the checkpoint
-    def _save_checkpoint(self, model, trial):
-        if self.args.hub_model_id is None:
-            model_name = Path(self.args.output_dir).name
+        if version.parse(transformers.__version__) >= version.parse("4.47.0.dev0"):
+            return super().log(logs, start_time)
+        else:  # transformers<=4.46
+            return super().log(logs)
+
+    def create_model_card(
+        self,
+        model_name: Optional[str] = None,
+        dataset_name: Optional[str] = None,
+        tags: Union[str, list[str], None] = None,
+    ):
+        """
+        Creates a draft of a model card using the information available to the `Trainer`.
+
+        Args:
+            model_name (`str` or `None`, *optional*, defaults to `None`):
+                Name of the model.
+            dataset_name (`str` or `None`, *optional*, defaults to `None`):
+                Name of the dataset used for training.
+            tags (`str`, `list[str]` or `None`, *optional*, defaults to `None`):
+                Tags to be associated with the model card.
+        """
+        if not self.is_world_process_zero():
+            return
+
+        if hasattr(self.model.config, "_name_or_path") and not os.path.isdir(self.model.config._name_or_path):
+            base_model = self.model.config._name_or_path
         else:
-            model_name = self.args.hub_model_id.split("/")[-1]
-        self.create_model_card(model_name=model_name)
-        super()._save_checkpoint(model, trial)
+            base_model = None
+
+        tags = tags or []
+        if isinstance(tags, str):
+            tags = [tags]
+
+        if hasattr(self.model.config, "unsloth_version"):
+            tags.append("unsloth")
+
+        citation = textwrap.dedent("""\
+        @article{jung2024binary,
+            title        = {{Binary Classifier Optimization for Large Language Model Alignment}},
+            author       = {Seungjae Jung and Gunsoo Han and Daniel Wontae Nam and Kyoung{-}Woon On},
+            year         = 2024,
+            eprint       = {arXiv:2404.04656}
+        }""")
+
+        model_card = generate_model_card(
+            base_model=base_model,
+            model_name=model_name,
+            hub_model_id=self.hub_model_id,
+            dataset_name=dataset_name,
+            tags=tags,
+            wandb_url=wandb.run.get_url() if is_wandb_available() and wandb.run is not None else None,
+            comet_url=get_comet_experiment_url(),
+            trainer_name="BCO",
+            trainer_citation=citation,
+            paper_title="Binary Classifier Optimization for Large Language Model Alignment",
+            paper_id="2404.04656",
+        )
+
+        model_card.save(os.path.join(self.args.output_dir, "README.md"))
 class UnslothBCOTrainer(_UnslothBCOTrainer):
     """
     
     Initialize BCOTrainer from [BCO](https://huggingface.co/papers/2404.04656) paper.
 
     Args:
-        model ([`~transformers.PreTrainedModel`]):
-            The model to train, preferably an [`~transformers.AutoModelForSequenceClassification`].
-        ref_model ([`PreTrainedModelWrapper`]):
-            Hugging Face transformer model with a casual language modelling head. Used for implicit reward computation
-            and loss. If no reference model is provided, the trainer will create a reference model with the same
-            architecture as the model to be optimized.
-        args ([`BCOConfig`]):
+        model (`transformers.PreTrainedModel`):
+            The model to train, preferably an `AutoModelForSequenceClassification`.
+        ref_model (`PreTrainedModelWrapper`):
+            Hugging Face transformer model with a casual language modelling head. Used for implicit reward computation and loss. If no
+            reference model is provided, the trainer will create a reference model with the same architecture as the model to be optimized.
+        args (`BCOConfig`):
             The arguments to use for training.
-        train_dataset ([`~datasets.Dataset`]):
+        train_dataset (`datasets.Dataset`):
             The dataset to use for training.
-        eval_dataset ([`~datasets.Dataset`]):
+        eval_dataset (`datasets.Dataset`):
             The dataset to use for evaluation.
-        processing_class ([`~transformers.PreTrainedTokenizerBase`], [`~transformers.BaseImageProcessor`], [`~transformers.FeatureExtractionMixin`] or [`~transformers.ProcessorMixin`], *optional*):
+        processing_class (`PreTrainedTokenizerBase` or `BaseImageProcessor` or `FeatureExtractionMixin` or `ProcessorMixin`, *optional*):
             Processing class used to process the data. If provided, will be used to automatically process the inputs
             for the model, and it will be saved along the model to make it easier to rerun an interrupted training or
             reuse the fine-tuned model.
-        data_collator ([`~transformers.DataCollator`], *optional*):
-            The data collator to use for training. If None is specified, the default data collator
-            ([`DPODataCollatorWithPadding`]) will be used which will pad the sequences to the maximum length of the
-            sequences in the batch, given a dataset of paired sequences.
+        data_collator (`transformers.DataCollator`, *optional*, defaults to `None`):
+            The data collator to use for training. If None is specified, the default data collator (`DPODataCollatorWithPadding`) will be used
+            which will pad the sequences to the maximum length of the sequences in the batch, given a dataset of paired sequences.
         model_init (`Callable[[], transformers.PreTrainedModel]`):
-            The model initializer to use for training. If None is specified, the default model initializer will be
-            used.
+            The model initializer to use for training. If None is specified, the default model initializer will be used.
         callbacks (`list[transformers.TrainerCallback]`):
             The callbacks to use for training.
         optimizers (`tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR]`):
@@ -1966,11 +1678,10 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
         preprocess_logits_for_metrics (`Callable[[torch.Tensor, torch.Tensor], torch.Tensor]`):
             The function to use to preprocess the logits before computing the metrics.
         peft_config (`dict`, defaults to `None`):
-            The PEFT configuration to use for training. If you pass a PEFT configuration, the model will be wrapped in
-            a PEFT model.
+            The PEFT configuration to use for training. If you pass a PEFT configuration, the model will be wrapped in a PEFT model.
         compute_metrics (`Callable[[EvalPrediction], dict]`, *optional*):
-            The function to use to compute the metrics. Must take a `EvalPrediction` and return a dictionary string to
-            metric values.
+            The function to use to compute the metrics. Must take a `EvalPrediction` and return
+            a dictionary string to metric values.
         model_adapter_name (`str`, defaults to `None`):
             Name of the train target PEFT adapter, when using LoRA with multiple adapters.
         ref_adapter_name (`str`, defaults to `None`):
@@ -2003,40 +1714,25 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
         use_fp16 = getattr(args, 'fp16', False)
         if type(use_fp16) is not bool: use_fp16 = False
         force_float32 = False
-        full_finetuning = os.environ.get('UNSLOTH_ENABLE_FULL_FINETUNING', '0') == '1'
-        if not full_finetuning and (os.environ.get('UNSLOTH_FORCE_FLOAT32', '0') == '1'):
+        if os.environ.get('UNSLOTH_FORCE_FLOAT32', '0') == '1':
             print('Unsloth: Switching to float32 training since model cannot work with float16')
             force_float32 = True
         mixed_precision_dtype = os.environ.get('UNSLOTH_MIXED_PRECISION', 'float32')
-        dtype = getattr(model.config, 'dtype', None) or getattr(model.config, 'torch_dtype', None)
-        if dtype is None: dtype = model.get_input_embeddings().weight.dtype
+        dtype = getattr(model.config, 'torch_dtype', None)
+        if dtype is None: dtype = model.get_input_embeddings().dtype
         from unsloth_zoo.utils import _get_dtype
         dtype = _get_dtype(dtype)
         float16 = dtype == torch.float16
         if not force_float32 and (float16 and use_bf16): raise TypeError('Unsloth: Model is in float16 precision but you want to use bfloat16 precision. Set fp16 to `True` and bf16 to `False`')
         if not force_float32 and (not float16 and use_fp16): raise TypeError('Unsloth: Model is in bfloat16 precision but you want to use float16 precision. Set fp16 to `False` and bf16 to `True`')
         if force_float32:
-            # Forced float32 training
             args.fp16 = False
             args.bf16 = False
             os.environ['ACCELERATE_MIXED_PRECISION'] = 'no'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'no'
-            # args.mixed_precision is a new argument which needs to be set now
         elif (not use_bf16 and not use_fp16) and mixed_precision_dtype == 'float32':
-            # Mixed precision training
             args.fp16 = float16
             args.bf16 = not float16
             os.environ['ACCELERATE_MIXED_PRECISION'] = 'fp16' if float16 else 'bf16'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'fp16' if float16 else 'bf16'
-            # args.mixed_precision is a new argument which needs to be set now
-        elif mixed_precision_dtype == 'bfloat16':
-            # Both False since bfloat16 full finetuning doesn't do any autocasting.
-            args.fp16 = False
-            args.bf16 = False
-            os.environ['ACCELERATE_MIXED_PRECISION'] = 'no'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'no'
-            # args.mixed_precision is a new argument which needs to be set now
-        
         if getattr(args, 'eval_dataset', None) is not None and getattr(args, 'eval_strategy', 'no') == 'no':
             args.eval_strategy = 'steps'
             if getattr(args, 'eval_steps', None) is None: args.eval_steps = 0.1
@@ -2070,15 +1766,6 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
         if locals().get('preprocess_logits_for_metrics', None) is not None: _output_logits = True
         if _output_logits:
             os.environ['UNSLOTH_RETURN_LOGITS'] = '1'
-        if model is not None:
-            _warnings_issued = getattr(model, 'warnings_issued', None)
-            if _warnings_issued is None:
-                model.warnings_issued = {}
-            elif not isinstance(_warnings_issued, dict):
-                try:
-                    model.warnings_issued = dict(_warnings_issued)
-                except Exception:
-                    model.warnings_issued = {}
         if 'max_seq_length' not in locals() and not hasattr(args, 'max_seq_length'):
             pass
         else:
@@ -2087,13 +1774,8 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
             if args_max_seq_length is None and model_max_seq_length is not None:
                 max_seq_length = model.max_seq_length
                 if hasattr(args, 'max_seq_length'): args.max_seq_length = max_seq_length
-            elif args_max_seq_length is not None and model_max_seq_length is not None:
-                if args_max_seq_length > model_max_seq_length:
-                    print('Unsloth: You set `max_seq_length` as ' + str(args_max_seq_length) + ' but '
-                           'the maximum the model supports is ' + str(model_max_seq_length) + '. We shall reduce it.')
-                    args.max_seq_length = model_max_seq_length
         if model is not None and hasattr(model, 'for_training'):
-            model.for_training(use_gradient_checkpointing=getattr(args, 'gradient_checkpointing', True))
+            model.for_training()
         if 'tokenizer' in locals() and hasattr(tokenizer, 'padding_side'): tokenizer.padding_side = 'right'
         if 'processing_class' in locals():
             if hasattr(processing_class, 'padding_side'): processing_class.padding_side = 'right'
@@ -2102,17 +1784,9 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
         from unsloth_zoo.vision_utils import UnslothVisionDataCollator
         if not isinstance(data_collator, UnslothVisionDataCollator):
             if isinstance(data_collator, DataCollatorForSeq2Seq) and 'labels' not in train_dataset.column_names:
-                data_collator = TransformersDataCollatorForLanguageModeling(
-                    __tokenizer,
-                    mlm = False,
-                    mlm_probability = 0.0,
-                    pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
-                )
+                data_collator = TransformersDataCollatorForLanguageModeling(__tokenizer, mlm = False, mlm_probability = 0.0)
             elif isinstance(data_collator, TransformersDataCollatorForLanguageModeling) and 'labels' in train_dataset.column_names:
-                data_collator = DataCollatorForSeq2Seq(
-                    __tokenizer,
-                    pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
-                )
+                data_collator = DataCollatorForSeq2Seq(__tokenizer)
         else:
             if hasattr(args, 'remove_unused_columns'): args.remove_unused_columns = False
             if hasattr(args, 'dataset_text_field'): args.dataset_text_field = ''
@@ -2120,29 +1794,14 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
         if not isinstance(data_collator, UnslothVisionDataCollator):
             if not hasattr(__tokenizer, 'pad') and hasattr(__tokenizer, 'tokenizer'):
                 if isinstance(data_collator, DataCollatorForSeq2Seq):
-                    data_collator = DataCollatorForSeq2Seq(
-                        __tokenizer.tokenizer,
-                        pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
-                    )
-                elif isinstance(data_collator, TransformersDataCollatorForLanguageModeling):
-                    data_collator = TransformersDataCollatorForLanguageModeling(
-                        __tokenizer.tokenizer,
-                        mlm = False,
-                        mlm_probability = 0.0,
-                        pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
-                    )
+                    data_collator = DataCollatorForSeq2Seq(__tokenizer.tokenizer)
+                else:
+                    data_collator = TransformersDataCollatorForLanguageModeling(__tokenizer.tokenizer, mlm = False, mlm_probability = 0.0)
         other_metrics = []
         
         from unsloth_zoo.logging_utils import PatchRLStatistics
         PatchRLStatistics('bco_trainer', other_metrics)
         
-        # [TODO] Fix up DataParallel multiplying batch sizes
-        # [TODO] DDP works, but DP seems to not work? [TODO]
-        if getattr(args, "parallel_mode", None) == ParallelMode.NOT_DISTRIBUTED and args.n_gpu > 1:
-            if getattr(args, "_n_gpu", 1) != 1:
-                args._n_gpu = 1
-        if "model" in locals() and hasattr(model, "for_training"):
-            model.for_training(use_gradient_checkpointing=getattr(args, 'gradient_checkpointing', True))
         super().__init__(
             model = model,
             ref_model = ref_model,
@@ -2160,40 +1819,11 @@ class UnslothBCOTrainer(_UnslothBCOTrainer):
             ref_adapter_name = ref_adapter_name,
             embedding_func = embedding_func,
             embedding_tokenizer = embedding_tokenizer,**kwargs)
-        if "model" in locals() and hasattr(model, "for_inference"):
-            model.for_inference()
         if hasattr(self, 'neftune_hook_handle'):
             self.neftune_hook_handle.remove()
             if hasattr(self, 'neftune_hook_handle'): del self.neftune_hook_handle
         if getattr(args, 'neftune_noise_alpha', None) is not None:
             model.get_input_embeddings().neftune_noise_alpha = self.neftune_noise_alpha
         pass
-        if hasattr(self, 'accelerator'):
-            scaler = self.accelerator.scaler
-            current_model = model
-            while hasattr(current_model, 'model'):
-                current_model.accelerator_scaler = scaler
-                current_model = current_model.model
-            current_model.accelerator_scaler = scaler
-        pass
-        if hasattr(self, 'train'):
-            self.train = MethodType(prepare_for_training_mode(self.__class__.train), self)
-        pass
-        if hasattr(self, 'llm') and self.llm is not None and hasattr(self.llm, 'get_tokenizer'):
-            _vllm_tok = self.llm.get_tokenizer()
-            _pc = getattr(self, 'processing_class', None) or getattr(self, 'tokenizer', None)
-            if _vllm_tok is not None and _pc is not None and getattr(_pc, 'chat_template', None) is not None and getattr(_vllm_tok, 'chat_template', None) is None:
-                _vllm_tok.chat_template = _pc.chat_template
-        pass
         
 pass
-
-
-if hasattr(logger, "addFilter"):
-    import logging
-    class HideLoggingMessage(logging.Filter):
-        def __init__(self, text): self.text = text
-        def filter(self, x): return not (self.text in x.getMessage())
-    pass
-    logger.addFilter(HideLoggingMessage("`use_cache=True`"))
-

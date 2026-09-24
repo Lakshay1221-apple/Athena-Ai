@@ -26,16 +26,35 @@ class DatasetValidator:
         self, example: Dict[str, Any], seen_hashes: set
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         """
-        Validate a single example.
+        Validate a single example (supports both formatted datasets with 'text'
+        and raw datasets with 'instruction'/'response').
         Returns: (is_valid, failure_reason, example_hash)
         """
         if not isinstance(example, dict):
             return False, "Record is not a valid JSON dictionary", None
 
-        # Check required fields
+        # Case 1: Formatted dataset (contains canonical 'text' field)
+        if "text" in example:
+            text_val = example["text"]
+            if not isinstance(text_val, str) or not text_val.strip():
+                return False, "Field 'text' is empty or not a string", None
+
+            if len(text_val.strip()) < self.min_response_length:
+                return False, f"Formatted text too short ({len(text_val.strip())} chars < {self.min_response_length})", None
+
+            ex_hash = calculate_text_hash(text_val)
+            if ex_hash in seen_hashes:
+                return False, "Duplicate example found", ex_hash
+
+            if len(text_val) > self.max_token_approx * 4:
+                return False, f"Excessive sequence length (~{len(text_val) // 4} tokens)", ex_hash
+
+            return True, None, ex_hash
+
+        # Case 2: Raw instruction-response dataset
         for field in self.REQUIRED_CORE_FIELDS:
             if field not in example:
-                return False, f"Missing required field: '{field}'", None
+                return False, f"Missing required field: '{field}' (or 'text' for formatted datasets)", None
             val = example[field]
             if not isinstance(val, str) or not val.strip():
                 return False, f"Field '{field}' is empty or not a string", None
