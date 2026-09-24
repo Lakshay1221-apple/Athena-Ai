@@ -1,0 +1,15 @@
+{"concept": "Supervised vs Unsupervised Learning", "instruction": "What is the core difference between supervised and unsupervised learning, and when should I use each?", "difficulty": "Beginner"}
+{"concept": "Gradient Descent", "instruction": "Explain how Gradient Descent works and describe why learning rate choice is critical.", "difficulty": "Intermediate"}
+{"concept": "Bias-Variance Tradeoff", "instruction": "What is the bias-variance tradeoff and how does it relate to underfitting and overfitting?", "difficulty": "Intermediate"}
+{"concept": "Overfitting and Regularization", "instruction": "Explain overfitting in machine learning models and how L1 (Lasso) and L2 (Ridge) regularization help prevent it.", "difficulty": "Intermediate"}
+{"concept": "Cross-Validation", "instruction": "Why should we use k-fold cross-validation instead of a single train-test split?", "difficulty": "Beginner"}
+{"concept": "Decision Trees vs Random Forests", "instruction": "How does a Random Forest improve upon a single Decision Tree?", "difficulty": "Intermediate"}
+{"concept": "Logistic Regression & Cross-Entropy", "instruction": "Explain how Logistic Regression works and why cross-entropy loss is used instead of mean squared error.", "difficulty": "Intermediate"}
+{"concept": "Support Vector Machines", "instruction": "What is the kernel trick in Support Vector Machines and why is it useful for non-linear data?", "difficulty": "Advanced"}
+{"concept": "Principal Component Analysis", "instruction": "Explain Principal Component Analysis (PCA) and how it achieves dimensionality reduction.", "difficulty": "Intermediate"}
+{"concept": "Neural Networks & Backpropagation", "instruction": "How does the backpropagation algorithm compute gradients in a multi-layer neural network?", "difficulty": "Advanced"}
+{"concept": "Activation Functions", "instruction": "Compare ReLU, Sigmoid, and LeakyReLU activation functions. Why did ReLU become popular for deep networks?", "difficulty": "Intermediate"}
+{"concept": "Precision, Recall and F1 Score", "instruction": "When should an ML practitioner prioritize Precision over Recall, and how does the F1-score balance them?", "difficulty": "Beginner"}
+{"concept": "Gradient Boosting", "instruction": "Explain how Gradient Boosting works sequentially to correct errors of previous weak learners.", "difficulty": "Advanced"}
+{"concept": "Vanishing Gradient Problem", "instruction": "What causes the vanishing gradient problem in deep neural networks and how can it be mitigated?", "difficulty": "Advanced"}
+{"concept": "Stochastic vs Batch Gradient Descent", "instruction": "What are the trade-offs between Batch Gradient Descent, Mini-batch Gradient Descent, and Stochastic Gradient Descent?", "difficulty": "Intermediate"}

@@ -1,39 +1,20 @@
-from unsloth import FastLanguageModel
-import torch
+"""Quick smoke test inference script for Athena AI."""
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name="outputs/final_model",
-    max_seq_length=2048,
-    load_in_4bit=True,
-)
+from src.finetuning.inference import AthenaTeacher
 
-FastLanguageModel.for_inference(model)
 
-messages = [
-    {
-        "role": "user",
-        "content": "What is regularization?"
-    }
-]
+def test_quick_inference():
+    teacher = AthenaTeacher()
+    test_questions = [
+        "What is regularization in machine learning?",
+        "Explain the difference between L1 and L2 regularization.",
+    ]
 
-inputs = tokenizer.apply_chat_template(
-    messages,
-    tokenize=True,
-    add_generation_prompt=True,
-    return_tensors="pt",
-).to("cuda")
+    for q in test_questions:
+        print(f"\n[Test Question]: {q}")
+        ans = teacher.ask(q, max_new_tokens=256)
+        print(f"[Athena Response]:\n{ans}\n{'-'*40}")
 
-outputs = model.generate(
-    input_ids=inputs,
-    max_new_tokens=512,
-    temperature=0.7,
-    do_sample=True,
-    top_p=0.9,
-)
 
-response = tokenizer.decode(
-    outputs[0],
-    skip_special_tokens=True,
-)
-
-print(response)
+if __name__ == "__main__":
+    test_quick_inference()
