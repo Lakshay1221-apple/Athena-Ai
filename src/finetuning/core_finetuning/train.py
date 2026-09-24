@@ -14,11 +14,11 @@ from peft import __version__ as peft_version
 from src.common.config import FINETUNING_CONFIG, PATHS
 from src.common.logger import get_logger
 from src.common.utils import calculate_file_hash, ensure_directory, save_json
-from src.finetuning.dataset_loader import load_formatted_dataset
-from src.finetuning.dataset_validator import DatasetValidator
-from src.finetuning.lora_config import apply_lora
-from src.finetuning.model_loader import load_model_and_tokenizer
-from src.finetuning.trainer import create_trainer
+from src.finetuning.data_opr.dataset_loader import load_formatted_dataset
+from src.finetuning.data_opr.dataset_validator import DatasetValidator
+from src.finetuning.core_finetuning.lora_config import apply_lora
+from src.finetuning.core_finetuning.model_loader import load_model_and_tokenizer
+from src.finetuning.core_finetuning.trainer import create_trainer
 
 logger = get_logger("train")
 

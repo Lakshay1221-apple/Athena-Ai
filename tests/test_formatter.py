@@ -3,7 +3,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from src.finetuning.formatter import format_dataset
+from src.finetuning.data_opr.formatter import format_dataset
 from src.common.utils import load_jsonl, save_json
 
 

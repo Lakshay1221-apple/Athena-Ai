@@ -6,10 +6,10 @@ from pathlib import Path
 
 from src.dataset_generation.chunker import Chunker
 from src.dataset_generation.text_cleaner import TextCleaner
-from src.finetuning.dataset_loader import load_formatted_dataset
-from src.finetuning.dataset_merger import DatasetMerger
-from src.finetuning.dataset_validator import DatasetValidator
-from src.finetuning.formatter import format_dataset
+from src.finetuning.data_opr.dataset_loader import load_formatted_dataset
+from src.finetuning.data_opr.dataset_merger import DatasetMerger
+from src.finetuning.data_opr.dataset_validator import DatasetValidator
+from src.finetuning.data_opr.formatter import format_dataset
 from src.common.utils import save_json, save_jsonl
 
 

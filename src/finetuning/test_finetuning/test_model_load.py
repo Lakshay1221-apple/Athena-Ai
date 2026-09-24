@@ -1,6 +1,6 @@
 """Test loading base model and tokenizer."""
 
-from src.finetuning.model_loader import load_model_and_tokenizer
+from src.finetuning.core_finetuning.model_loader import load_model_and_tokenizer
 
 
 def main():

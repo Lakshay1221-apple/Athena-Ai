@@ -3,7 +3,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from src.finetuning.dataset_validator import DatasetValidator
+from src.finetuning.data_opr.dataset_validator import DatasetValidator
 from src.common.utils import save_json
 
 

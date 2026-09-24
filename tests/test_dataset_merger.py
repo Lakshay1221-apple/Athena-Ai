@@ -3,7 +3,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from src.finetuning.dataset_merger import DatasetMerger
+from src.finetuning.data_opr.dataset_merger import DatasetMerger
 from src.common.utils import save_json, save_jsonl
 
 

@@ -1,7 +1,7 @@
 """Test attaching LoRA adapter to model."""
 
-from src.finetuning.lora_config import apply_lora
-from src.finetuning.model_loader import load_model_and_tokenizer
+from src.finetuning.core_finetuning.lora_config import apply_lora
+from src.finetuning.core_finetuning.model_loader import load_model_and_tokenizer
 
 
 def main():

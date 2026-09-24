@@ -2,7 +2,7 @@
 
 import unittest
 from src.common.config import INFERENCE_CONFIG
-from src.finetuning.inference import SYSTEM_PROMPT
+from src.finetuning.core_finetuning.inference import SYSTEM_PROMPT
 
 
 class TestInferenceConfig(unittest.TestCase):

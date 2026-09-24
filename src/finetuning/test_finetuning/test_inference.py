@@ -1,6 +1,6 @@
 """Quick smoke test inference script for Athena AI."""
 
-from src.finetuning.inference import AthenaTeacher
+from src.finetuning.core_finetuning.inference import AthenaTeacher
 
 
 def test_quick_inference():

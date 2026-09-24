@@ -82,7 +82,7 @@ def main():
         gen_main()
 
     elif args.command == "dataset-merge":
-        from src.finetuning.dataset_merger import DatasetMerger
+        from src.finetuning.data_opr.dataset_merger import DatasetMerger
         merger = DatasetMerger(
             gemma_path=Path(args.gemma_path) if args.gemma_path else None,
             notebooklm_dir=Path(args.notebooklm_dir) if args.notebooklm_dir else None,
@@ -92,7 +92,7 @@ def main():
 
     elif args.command == "dataset-validate":
         from src.common.config import PATHS
-        from src.finetuning.dataset_validator import DatasetValidator
+        from src.finetuning.data_opr.dataset_validator import DatasetValidator
         p = Path(args.dataset_path) if args.dataset_path else PATHS.v1_merged_json
         validator = DatasetValidator()
         report = validator.validate_dataset(p)
@@ -100,14 +100,14 @@ def main():
             sys.exit(1)
 
     elif args.command == "dataset-format":
-        from src.finetuning.formatter import format_dataset
+        from src.finetuning.data_opr.formatter import format_dataset
         format_dataset(
             dataset_input_path=Path(args.input_path) if args.input_path else None,
             output_path=Path(args.output_path) if args.output_path else None,
         )
 
     elif args.command == "train":
-        from src.finetuning.train import train as run_train
+        from src.finetuning.core_finetuning.train import train as run_train
         from src.common.config import PATHS
         p = Path(args.dataset_path) if args.dataset_path else PATHS.v1_formatted_jsonl
         run_train(
@@ -117,7 +117,7 @@ def main():
         )
 
     elif args.command == "evaluate":
-        from src.finetuning.evaluator import Evaluator
+        from src.finetuning.core_finetuning.evaluator import Evaluator
         evaluator = Evaluator(
             model_path=Path(args.model_path) if args.model_path else None,
             eval_dataset_path=Path(args.eval_dataset) if args.eval_dataset else None,
@@ -127,7 +127,7 @@ def main():
         )
 
     elif args.command == "merge-model":
-        from src.finetuning.merge_model import merge_and_export
+        from src.finetuning.core_finetuning.merge_model import merge_and_export
         merge_and_export(
             adapter_path=Path(args.adapter_path) if args.adapter_path else None,
             output_path=Path(args.output_path) if args.output_path else None,
@@ -135,7 +135,7 @@ def main():
         )
 
     elif args.command == "inference":
-        from src.finetuning.inference import AthenaTeacher, interactive_chat
+        from src.finetuning.core_finetuning.inference import AthenaTeacher, interactive_chat
         teacher = AthenaTeacher(
             model_path=Path(args.model_path) if args.model_path else None
         )

@@ -135,17 +135,25 @@ Athena-Ai/
 │   │   └── main.py                # Dataset generation runner & dry-run
 │   │
 │   └── finetuning/                # SFT & LoRA Pipeline
-│       ├── model_loader.py        # Unsloth 4-bit model loader
-│       ├── lora_config.py         # LoRA target projections & config
-│       ├── dataset_validator.py   # Pre-train dataset validation gate
-│       ├── dataset_merger.py      # Gemma + NotebookLM merge & deduplication
-│       ├── formatter.py           # ChatML tokenization & formatting
-│       ├── dataset_loader.py      # Deterministic train/val split
-│       ├── trainer.py             # SFTTrainer with eval & checkpointing
-│       ├── train.py               # Run-orchestrator with metadata logging
-│       ├── evaluator.py           # Fixed test set evaluator & leakage audit
-│       ├── merge_model.py         # LoRA weight merging
-│       └── inference.py           # Single prompt & interactive teacher chat
+│       ├── data_opr/              # Dataset operations
+│       │   ├── dataset_merger.py  # Gemma + NotebookLM merge & deduplication
+│       │   ├── dataset_validator.py# Pre-train dataset validation gate
+│       │   ├── formatter.py       # ChatML tokenization & formatting
+│       │   └── dataset_loader.py  # Deterministic train/val split
+│       │
+│       ├── core_finetuning/       # Training & inference engine
+│       │   ├── model_loader.py    # Unsloth 4-bit model loader
+│       │   ├── lora_config.py     # LoRA target projections & config
+│       │   ├── trainer.py         # SFTTrainer with eval & checkpointing
+│       │   ├── train.py           # Run-orchestrator with metadata logging
+│       │   ├── evaluator.py       # Fixed test set evaluator & leakage audit
+│       │   ├── merge_model.py     # LoRA weight merging & standalone export
+│       │   └── inference.py       # Single prompt & interactive teacher chat
+│       │
+│       └── test_finetuning/       # Smoke tests for model loading & inference
+│           ├── test_model_load.py
+│           ├── test_lora.py
+│           └── test_inference.py
 │
 ├── tests/                         # Comprehensive unit & integration tests
 ├── pyproject.toml                 # Dependencies (Python 3.12)

@@ -7,7 +7,7 @@ from src.common.config import FINETUNING_CONFIG
 class TestModelLoaderConfig(unittest.TestCase):
     def test_model_config(self):
         self.assertEqual(FINETUNING_CONFIG.base_model, "unsloth/Llama-3.2-1B-Instruct")
-        self.assertEqual(FINETUNING_CONFIG.max_seq_length, 2048)
+        self.assertEqual(FINETUNING_CONFIG.max_seq_length, 1024)
         self.assertTrue(FINETUNING_CONFIG.load_in_4bit)
 
     def test_lora_targets(self):
