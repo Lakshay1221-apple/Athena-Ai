@@ -6,6 +6,7 @@ import platform
 import sys
 from pathlib import Path
 
+import unsloth
 import torch
 import transformers
 import trl
@@ -21,6 +22,7 @@ from src.finetuning.core_finetuning.model_loader import load_model_and_tokenizer
 from src.finetuning.core_finetuning.trainer import create_trainer
 
 logger = get_logger("train")
+
 
 
 def train(
