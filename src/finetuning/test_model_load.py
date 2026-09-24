@@ -1,13 +1,13 @@
-# test_model_load.py
+"""Test loading base model and tokenizer."""
 
-import unsloth
-from unsloth import FastLanguageModel
+from src.finetuning.model_loader import load_model_and_tokenizer
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name="unsloth/Llama-3.2-1B-Instruct",
-    max_seq_length=2048,
-    load_in_4bit=True,
-)
 
-print("Model loaded successfully")
-print("Vocab size:", tokenizer.vocab_size)
+def main():
+    model, tokenizer = load_model_and_tokenizer()
+    print("Model loaded successfully")
+    print("Vocab size:", tokenizer.vocab_size)
+
+
+if __name__ == "__main__":
+    main()

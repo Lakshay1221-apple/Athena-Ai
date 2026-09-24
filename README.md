@@ -1,150 +1,248 @@
-# Athena AI
+# Athena AI — ML Teaching Assistant
 
-> **Building a complete Machine Learning Teaching Assistant through Dataset Generation, Fine-Tuning, and Retrieval-Augmented Generation (RAG).**
+> **An end-to-end Machine Learning Teaching Assistant built through Dataset Generation, Supervised Fine-Tuning (QLoRA), and Pedagogical Evaluation.**
 
 ---
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/07de1213-f6fa-4b79-9c07-a3d898c5e312" />
-
 
 ## 📌 Project Overview
 
-**Athena AI** is an end-to-end engineering initiative designed to build a highly specialized Machine Learning Teaching Assistant. Rather than relying on black-box wrappers or high-level abstract frameworks, this project is built entirely from scratch to gain direct hands-on experience with the critical components of the modern Generative AI lifecycle:
-
-- **Source Processing & Extraction**: Extracting and cleaning structure from dense educational documents.
-- **Robust Dataset Generation**: Programmatic instruction-response generation using local LLMs.
-- **Instruction Tuning**: Formatting and prepping high-quality training pairs.
-- **LoRA / QLoRA Fine-Tuning**: Supervised fine-tuning of small language models on domain-specific data.
-- **Retrieval-Augmented Generation (RAG)**: Building local embedding pipelines and vector stores for context retrieval.
-- **Evaluation Pipelines**: Auditing and scoring retrieval accuracy and generation quality.
+**Athena AI** is an engineering project designed to build a specialized Machine Learning Teaching Assistant. The system transforms dense ML textbooks into high-quality instruction-response pairs, fine-tunes domain-adapted models using QLoRA / Unsloth, evaluates pedagogical teaching performance, and serves interactive explanations.
 
 ---
 
-## 📊 Repository Status & Progress
-
-The project is currently under active development. Below is a detailed view of the dataset generation metrics at the current checkpoint:
-
-| Metric | Value |
-| :--- | :--- |
-| **Dataset Status** | Paused at Chunk 94 |
-| **Processed Chunks** | 94 |
-| **Successful Examples** | 92 |
-| **Failed Chunks** | 2 |
-| **Success Rate** | 97.9% |
-| **Unique Concepts** | 82 |
-| **Average Response Length** | 4,222 Characters |
-| **Beginner Examples** | 6 |
-| **Intermediate Examples** | 80 |
-| **Advanced Examples** | 6 |
-
----
-
-## ⚙️ Dataset Generation Details
-
-The dataset generation pipeline extracts educational context blocks from textbooks and processes them into instruction-response datasets for fine-tuning.
-
-- **Source Book**: *Hands-On Machine Learning*
-- **Total Chunks Processed**: 94
-- **Successful Dataset Records**: 92
-- **Failed Chunks**: `chunk_044`, `chunk_086`
-- **Architectural Safeguards**:
-  - **Checkpointing & Resume**: Fully decoupled progress tracking allows restarting runs instantly without loss.
-  - **Deduplication**: Hash-based validation ensures redundant concepts are filtered during generation.
-  - **Incremental Saving**: Outputs are appended directly to [JSONL](file:///home/lakshay/ML-Teacher/Data/datasets/v1/ml_teacher_dataset.jsonl) on successful cycles to mitigate corruption risks.
-
-*Thanks to checkpointing, retry logic, and resume capabilities, the generation pipeline successfully survived interruptions, model timeouts, and server restarts during execution.*
-
----
-
-## 📐 Project Architecture
-
-The codebase follows a modular design layout:
+## 📐 Pipeline Architecture (Phase 1 — Hardened Pipeline)
 
 ```text
-ML-Teacher
-│
-├── Data                     # Raw data and output datasets
-│   ├── books                # Source PDF textbooks
-│   ├── chunks               # Intermediate extracted text segments
-│   └── datasets             # Versioned JSON and JSONL datasets
-│
-├── src                      # Core source code
-│   ├── dataset_generation   # Pipeline parsing, cleaning, generating, and validation
-│   ├── finetuning           # QLoRA fine-tuning modules (SFT)
-│   ├── rag                  # Embedding generation and database queries
-│   └── common               # Shared configuration and helper modules
-│
-├── embeddings               # Local text embedding artifacts
-├── vector_db                # Local vector store instances
-├── models                   # Model base weights and fine-tuned adapter exports
-├── notebooks                # Research and analysis files
-└── logs                     # Progress and execution log files
+                  ┌───────────────────────────────┐
+                  │    Source PDF (Textbooks)     │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │   PDF Cleaning & Extraction   │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │  Word-Count Semantic Chunking │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │   Synthetic Q&A Generation    │
+                  │   (Gemma / Ollama + Chunks)   │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │ Merge & Deduplicate Datasets  │
+                  │ (Gemma + NotebookLM Batches)  │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │   Dataset Validation Gate     │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │ ChatML Canonical Formatting   │
+                  │   (System Prompt + Llama 3)   │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │ Deterministic Train/Val Split │
+                  └───────┬───────────────┬───────┘
+                          │               │
+                 Train (90%)         Val (10%)
+                          │               │
+                          └───────┬───────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │  QLoRA / SFT Training (Unsloth│
+                  │   - 4-bit NF4 Quantization    │
+                  │   - Validation Evaluation     │
+                  │   - Periodic Checkpointing    │
+                  └───────────────┬───────────────┘
+                                  │
+                  ┌───────────────┼───────────────┐
+                  ▼               ▼               ▼
+             Checkpoints      Evaluation       Metadata
+                  │               │               │
+                  └───────────────┼───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │      Saved LoRA Adapter       │
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │    Model Merging & Export     │
+                  │    (16-bit / 4-bit Standalone)│
+                  └───────────────┬───────────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │    Inference & Student Chat   │
+                  └───────────────────────────────┘
 ```
 
 ---
 
-## 🛠️ Implemented Features
-
-- [x] **PDF Processing**: Automatic extraction of text blocks, filtering header/footers and margins.
-- [x] **Text Cleaning**: Normalization, whitespace cleanups, and page junction processing.
-- [x] **Chunk Generation**: Word-count semantic chunker keeping logical context intact.
-- [x] **Dataset Generation**: Automated LLM query loop targeting conceptual curriculum.
-- [x] **JSON Validation**: Structure, keys, and difficulty validation.
-- [x] **Retry Logic**: Graceful error handling for API timeouts and bad JSON schemas.
-- [x] **Deduplication**: Exact-match seen-hash deduplicator preventing duplicate explanations.
-- [x] **Incremental Saving**: Real-time line appending to prevent in-flight data loss.
-- [x] **Failure Tracking**: Isolated tracking of chunk failures for retry audits.
-- [x] **Checkpointing**: Completed chunk state tracking independent of output structure.
-- [x] **Resume Support**: Ability to automatically restart execution from the last processed block.
-- [x] **Dataset Statistics**: Built-in scripts to track metrics, distributions, and average token sizes.
-
----
-
-## 🗺️ Upcoming Roadmap
-
-### Phase 1 — Dataset Completion
-- Resume generation from Chunk 95
-- Process all remaining 117 chunks to achieve complete coverage (211 chunks total)
-
-### Phase 2 — Fine-Tuning
-- Format generated JSON/JSONL datasets to match model templates (e.g. ChatML)
-- Conduct QLoRA/LoRA parameter-efficient training on a local consumer GPU
-- Export adapter weights and merge models for deployment
-- Build baseline model evaluation suite
-
-### Phase 3 — RAG System
-- Create local embedding generation pipeline for textbook segments
-- Establish a local vector database instance for indexing book chunks
-- Build retrieval pipeline with reranking capability
-- Assemble prompt context compiler
-
-### Phase 4 — ML Teacher Assistant
-- Integrate the fine-tuned instructor model with the retriever pipeline
-- Implement system evaluation suite (faithfulness, answer relevance)
-- Design interactive CLI/web interface for student Q&A
-
----
-
-## 💡 Lessons Learned
-
-- **Checkpointing is Critical**: In long-running pipelines running on local models, timeouts, transient Out-Of-Memory (OOM) exceptions, and hardware restarts will occur. Separating state tracking from the main data files makes the codebase resilient to these issues.
-- **Incremental Appends Over Buffering**: Writing directly to line-oriented JSONL format guarantees that if a process crashes mid-generation, all previously generated records are immediately written to disk and safe.
-- **Local Model Limitations**: Small locally hosted language models sometimes deviate from prompt schemas or generate invalid JSON structures. A strong schema validator paired with custom retry parameters makes local LLM execution far more predictable.
-- **Pipeline Over Scripts**: Designing standard modular pipelines rather than quick scripts creates a maintainable framework that is easily reused, tested, and optimized for new datasets.
-
----
-
-## 📈 Repository Status
+## 📁 Project Structure
 
 ```text
-Status: Active Development
-Dataset Generation: 43.6% Complete (92/211 Chunks)
-Fine-Tuning: Not Started
-RAG Pipeline: Not Started
-Evaluation: Planned
+Athena-Ai/
+│
+├── Data/
+│   ├── books/                     # Source PDF textbooks
+│   ├── datasets/                  # Versioned JSON and JSONL datasets
+│   │   └── v1/
+│   │       ├── notebooklm/        # Batch JSON datasets (batch_01 - batch_04)
+│   │       ├── merged/            # Consolidated and formatted datasets
+│   │       ├── ml_teacher_dataset.jsonl
+│   │       └── checkpoint.json
+│   └── evaluation/
+│       └── ml_teaching_eval.jsonl # Isolated benchmark evaluation questions
+│
+├── outputs/
+│   ├── final_model/               # Latest trained LoRA adapter
+│   ├── evaluation/                # Benchmark inference outputs & metrics
+│   └── runs/                      # Isolated training run directories
+│       └── run_YYYYMMDD_HHMMSS/
+│           ├── adapter/
+│           ├── checkpoints/
+│           ├── evaluation/
+│           └── metadata.json
+│
+├── src/
+│   ├── common/                    # Centralized configs and utilities
+│   │   ├── config.py              # Central path & hyperparameter registry
+│   │   ├── logger.py              # Structured logging
+│   │   └── utils.py               # JSON/JSONL, hashing, and file helpers
+│   │
+│   ├── dataset_generation/        # Ingestion & synthetic generation
+│   │   ├── pdf_processor.py       # Header/footer trimming & block extraction
+│   │   ├── text_cleaner.py        # Ligatures, OCR hyphenation & code preservation
+│   │   ├── chunker.py             # Word-count semantic chunker
+│   │   ├── gemma_generator.py     # Ollama generation client
+│   │   ├── json_validator.py      # Output schema validator
+│   │   ├── deduplicator.py        # Real-time instruction deduplication
+│   │   ├── dataset_writer.py      # Atomic JSONL saves & checkpoint tracking
+│   │   └── main.py                # Dataset generation runner & dry-run
+│   │
+│   └── finetuning/                # SFT & LoRA Pipeline
+│       ├── model_loader.py        # Unsloth 4-bit model loader
+│       ├── lora_config.py         # LoRA target projections & config
+│       ├── dataset_validator.py   # Pre-train dataset validation gate
+│       ├── dataset_merger.py      # Gemma + NotebookLM merge & deduplication
+│       ├── formatter.py           # ChatML tokenization & formatting
+│       ├── dataset_loader.py      # Deterministic train/val split
+│       ├── trainer.py             # SFTTrainer with eval & checkpointing
+│       ├── train.py               # Run-orchestrator with metadata logging
+│       ├── evaluator.py           # Fixed test set evaluator & leakage audit
+│       ├── merge_model.py         # LoRA weight merging
+│       └── inference.py           # Single prompt & interactive teacher chat
+│
+├── tests/                         # Comprehensive unit & integration tests
+├── pyproject.toml                 # Dependencies (Python 3.12)
+├── uv.lock                        # Deterministic dependency lock
+├── .python-version                # Python 3.12 pin
+└── README.md
 ```
 
 ---
 
-## 🎓 Final Note
+## 🚀 Getting Started
 
-This project is a learning-focused engineering exercise. The objective is to understand and demystify the internal machinery of modern Generative AI architectures, exploring the practical software engineering challenges of building robust AI pipelines from data preprocessing through training and deployment.
+### 1. Environment Setup
+
+Athena AI uses **Python 3.12** and `uv` for fast, deterministic dependency resolution:
+
+```bash
+# Sync dependencies
+uv sync
+```
+
+---
+
+## 🛠️ Unified CLI Usage
+
+Athena AI provides a unified CLI via `python main.py <command>` or via direct module invocation:
+
+### 1. Dataset Generation (Synthetic Extraction)
+```bash
+# Dry-run to test PDF extraction and Ollama reachability
+python main.py dataset-generate --dry-run
+
+# Run dataset generation (with auto-resume support)
+python main.py dataset-generate --resume
+```
+
+### 2. Dataset Merging & Deduplication
+Merges local Gemma outputs and NotebookLM batch files with greeting filtering and deterministic hashing:
+```bash
+python main.py dataset-merge
+```
+
+### 3. Dataset Validation Gate
+Validates required keys, non-empty responses, length constraints, and duplicate absence:
+```bash
+python main.py dataset-validate
+```
+
+### 4. ChatML Formatting
+Formats records into canonical ChatML representation with system prompt:
+```bash
+python main.py dataset-format
+```
+
+### 5. Supervised Fine-Tuning (SFT / QLoRA)
+Runs training with validation loss evaluation and checkpoints:
+```bash
+python main.py train
+```
+
+### 6. Benchmark Evaluation & Leakage Check
+Runs inference against the fixed, isolated evaluation questions (`Data/evaluation/ml_teaching_eval.jsonl`) and verifies no data leakage:
+```bash
+python main.py evaluate
+```
+
+### 7. Model Merging (Export Standalone Weights)
+Merges LoRA adapter back into base model 16-bit float weights:
+```bash
+python main.py merge-model --format 16bit
+```
+
+### 8. Interactive Teacher Assistant
+Start an interactive teaching session in the terminal:
+```bash
+# Interactive Chat
+python main.py inference --interactive
+
+# Single prompt query
+python main.py inference --prompt "Explain the bias-variance tradeoff in machine learning."
+```
+
+---
+
+## 🧪 Testing Suite
+
+Execute the full suite of unit and integration tests:
+
+```bash
+uv run python -m unittest discover -s tests
+```
+
+---
+
+## ⚙️ Reproducibility & Run Metadata
+
+Every training run automatically generates a timestamped directory under `outputs/runs/run_YYYYMMDD_HHMMSS/` containing:
+- `adapter/`: LoRA adapter weights and tokenizer configs.
+- `checkpoints/`: Intermediate training checkpoints with validation checkpoints.
+- `metadata.json`: Exact Python version, package hashes, dataset SHA-256 hash, dataset sizes, seed, and hyperparameters for full reproducibility.

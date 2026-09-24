@@ -1,5 +1,7 @@
-OUTPUT_DIR = "outputs"
+"""Output configuration adapter pointing to src.common.config."""
 
-LORA_SAVE_DIR = "models/lora/athena-v1"
+from src.common.config import PATHS
 
-MERGED_MODEL_DIR = "models/merged/athena-v1"
+OUTPUT_DIR = str(PATHS.outputs_dir)
+LORA_SAVE_DIR = str(PATHS.outputs_dir / "final_model")
+MERGED_MODEL_DIR = str(PATHS.outputs_dir / "merged" / "athena-v1")
