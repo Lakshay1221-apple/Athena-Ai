@@ -27,22 +27,29 @@ Thumbs.db
 # Logs
 logs/*.log
 
-# Model Artifacts
+# Model & Training Artifacts
 models/base/
 models/lora/
 models/merged/
+outputs/runs/
+outputs/evaluation/*.json
+outputs/evaluation/*.jsonl
 *.gguf
 *.safetensors
 *.bin
+*.pt
 
 # Embeddings and Vector Databases
 embeddings/
 vector_db/
 
-# Temporary Files
+# Temporary Files & Caches
 *.tmp
 *.cache
+unsloth_compiled_cache/
+.triton/
 
 # Antigravity / Gemini Scratch Files
 brain/
 scratch/
+.gemini/
