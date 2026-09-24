@@ -52,10 +52,10 @@ class GenerationModelConfig:
 @dataclass
 class FineTuningConfig:
     base_model: str = "unsloth/Llama-3.2-1B-Instruct"
-    max_seq_length: int = 2048
+    max_seq_length: int = 1024
     load_in_4bit: bool = True
 
-    # LoRA hyperparameters
+    # LoRA hyperparameters (optimized for 4GB VRAM)
     lora_r: int = 8
     lora_alpha: int = 16
     lora_dropout: float = 0.0
@@ -72,21 +72,21 @@ class FineTuningConfig:
         ]
     )
 
-    # SFT Training hyperparameters
+    # SFT Training hyperparameters tailored for laptop GTX 1650 (4GB VRAM)
     learning_rate: float = 2e-4
     per_device_train_batch_size: int = 1
     per_device_eval_batch_size: int = 1
-    gradient_accumulation_steps: int = 8
+    gradient_accumulation_steps: int = 4
     num_train_epochs: int = 3
-    warmup_steps: int = 10
+    warmup_steps: int = 5
     weight_decay: float = 0.01
     lr_scheduler_type: str = "cosine"
     optim: str = "adamw_8bit"
     fp16: bool = True
     bf16: bool = False
     logging_steps: int = 5
-    eval_steps: int = 10
-    save_steps: int = 20
+    eval_steps: int = 15
+    save_steps: int = 30
     eval_strategy: str = "steps"
     save_strategy: str = "steps"
     save_total_limit: int = 2

@@ -4,7 +4,10 @@ import json
 import time
 from typing import Any, Dict, Optional
 
-import ollama
+try:
+    import ollama
+except ImportError:
+    ollama = None
 
 from src.common.config import GEN_MODEL_CONFIG
 from src.common.logger import get_logger
@@ -28,6 +31,13 @@ class GemmaGenerator:
         """
         Check if Ollama daemon is reachable and if the requested model is pulled.
         """
+        if ollama is None:
+            logger.error(
+                "The 'ollama' package is not installed in the active environment. "
+                "Run `uv sync` and execute commands using `uv run python ...` or activate `.venv`."
+            )
+            return False
+
         try:
             models_response = ollama.list()
             # Handle dictionary or object response from ollama.list()
@@ -116,6 +126,10 @@ Ensure that your output is valid JSON and nothing else."""
             return None
 
     def generate_example(self, chunk_text: str) -> Optional[Dict[str, Any]]:
+        if ollama is None:
+            logger.error("The 'ollama' package is not installed. Please install it or use uv run.")
+            return None
+
         prompt = self._build_prompt(chunk_text)
 
         for attempt in range(1, self.num_retries + 1):
