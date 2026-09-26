@@ -27,13 +27,11 @@ Thumbs.db
 # Logs
 logs/*.log
 
-# Model & Training Artifacts
+# Model & Training Outputs and Adapters
+outputs/
 models/base/
 models/lora/
 models/merged/
-outputs/runs/
-outputs/evaluation/*.json
-outputs/evaluation/*.jsonl
 *.gguf
 *.safetensors
 *.bin
